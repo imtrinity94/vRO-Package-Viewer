@@ -1,0 +1,32 @@
+{
+  "name": "vro-package-viewer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Browser-only viewer for VMware vRO / Aria Orchestrator / VCF Automation Orchestrator .package files",
+  "author": "imtrinity94",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "build:single": "tsc --noEmit && vite build --mode single",
+    "preview": "vite preview",
+    "test:parse": "node scripts/parse-test.mjs"
+  },
+  "dependencies": {
+    "highlight.js": "^11.12.0",
+    "jszip": "^3.10.2",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "@xmldom/xmldom": "^0.9.12",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.1",
+    "vite-plugin-singlefile": "^2.3.3"
+  }
+}
