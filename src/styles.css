@@ -280,9 +280,9 @@ dl.kv dd { margin: 0; word-break: break-all; }
 .code-head { display: flex; align-items: center; gap: 8px; padding: 5px 8px 5px 12px; border-bottom: 1px solid var(--border); background: var(--panel-2); font-size: 12.5px; }
 .code-title { font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .code-meta { color: var(--muted); font-size: 11.5px; }
-.code-body { display: flex; overflow: auto; max-height: 800px; }
+.code-body { display: flex; align-items: flex-start; overflow: auto; max-height: 800px; }
 .code-body pre { margin: 0; padding: 10px 12px; font-family: var(--mono); font-size: 12.5px; line-height: 1.55; }
-.gutter { color: var(--muted); text-align: right; user-select: none; border-right: 1px solid var(--border); opacity: 0.7; position: sticky; left: 0; background: var(--code-bg); }
+.gutter { color: var(--muted); text-align: right; user-select: none; border-right: 1px solid var(--border); position: sticky; left: 0; z-index: 1; flex-shrink: 0; background: var(--panel-2); box-shadow: 4px 0 6px -4px rgb(0 0 0 / 0.15); }
 .src { flex: 1; tab-size: 4; }
 .src.wrap { white-space: pre-wrap; word-break: break-word; }
 .hljs-keyword, .hljs-built_in, .hljs-literal, .hljs-selector-tag { color: var(--hl-kw); }
