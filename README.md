@@ -1,6 +1,12 @@
-# vRO Package Viewer
+# vRO Peekage
 
-Browse the contents of a VMware **vRealize / Aria Orchestrator** or **VCF Automation Orchestrator** `.package` file in the browser — workflows, actions, configuration elements, resource elements and polyglot environments — without importing it into an Orchestrator.
+<img src="public/brand/peekbox-mark.svg" width="72" alt="vRO Peekage logo">
+
+**Your .package files, opened up — no Orchestrator needed.**
+
+_Formerly vRO Package Viewer._ · Live at **https://vro-peekage.vercel.app**
+
+Browse the contents of a `.package` file from **vRealize Orchestrator 7.x**, **Aria Automation Orchestrator 8.x** or **VCF Operations Orchestrator 9.x** in the browser — workflows, actions, configuration elements, resource elements and polyglot environments — without importing it into an Orchestrator.
 
 The package is parsed entirely client-side (JSZip + DOMParser). Nothing is uploaded; the Vercel deployment is a static site with no backend. The CSP in `vercel.json` also blocks outbound connections.
 
@@ -49,6 +55,11 @@ npm run test:parse -- path/to/file.package   # parse a package in Node and print
 
 ## Deploy to Vercel
 
+The site's canonical address is `https://vro-peekage.vercel.app` (set in `index.html`, `public/sitemap.xml` and `public/robots.txt`). If you deploy elsewhere, update those three. Requests to the old `vro-package-viewer.vercel.app` host are permanently redirected to it by `vercel.json`, as long as that domain is still attached to the project.
+
+`npm run build` also pre-renders the landing page into `dist/index.html`, so search engines and link previews see real content without running JavaScript.
+
+
 Push the repo to GitHub and import it in Vercel — the Vite preset is detected (`vercel.json` pins build command and output). Or from the CLI:
 
 ```bash
@@ -56,3 +67,7 @@ npm i -g vercel
 vercel        # preview
 vercel --prod
 ```
+
+## Disclaimer
+
+vRO Peekage is an independent community tool and is not affiliated with or endorsed by Broadcom or VMware. vRealize, Aria and VCF are trademarks of Broadcom.

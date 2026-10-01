@@ -5,6 +5,7 @@ import { Sidebar } from "./components/Sidebar";
 import { Overview } from "./components/Overview";
 import { ElementView } from "./components/ElementView";
 import { SearchView } from "./components/SearchView";
+import { Landing } from "./components/Landing";
 
 type View = { kind: "overview" } | { kind: "search" } | { kind: "element"; id: string; term?: string };
 
@@ -70,7 +71,7 @@ export default function App() {
       const p = await parsePackage(buf, file.name);
       if (!p.elements.length && !Object.keys(p.meta).length) throw new Error("This doesn't look like a vRO package (no dunes-meta-inf or elements/ found).");
       setPkg(p);
-      document.title = `${p.meta["pkg-name"] || file.name} · vRO Package Viewer`;
+      document.title = `${p.meta["pkg-name"] || file.name} · vRO Peekage`;
       const h = readHash();
       if (h.kind === "element" && !p.byId.has(h.id.toLowerCase())) go({ kind: "overview" });
       else if (h.kind !== "overview") setView(h);
@@ -158,7 +159,7 @@ export default function App() {
           <button className="btn-ghost only-mobile" onClick={() => setNavOpen(!navOpen)} aria-label="Toggle navigation">☰</button>
         )}
         <button className="brand" onClick={() => pkg && go({ kind: "overview" })}>
-          <Logo /> <span>vRO Package Viewer</span>
+          <Logo /> <span className="brand-name"><b>vRO</b> Peekage</span>
         </button>
         {pkg && (
           <>
@@ -169,26 +170,17 @@ export default function App() {
             <button className="btn" onClick={() => inputRef.current?.click()}>Open…</button>
           </>
         )}
-        {!pkg && <div className="spacer" />}
+        {!pkg && (
+          <>
+            <div className="spacer" />
+            <a className="btn-ghost" href="https://github.com/imtrinity94/vRO-Package-Viewer" target="_blank" rel="noreferrer">GitHub</a>
+          </>
+        )}
         {themeBtn}
       </header>
 
       {!pkg ? (
-        <main className="landing">
-          <div className="drop" onClick={() => inputRef.current?.click()} role="button" tabIndex={0} onKeyDown={(e) => e.key === "Enter" && inputRef.current?.click()}>
-            <Logo size={44} />
-            <h1>Open a vRO package</h1>
-            <p>Drop a <code>.package</code> exported from vRealize / Aria Orchestrator or VCF Automation Orchestrator, or click to choose one.</p>
-            <button className="btn primary" disabled={busy}>{busy ? "Reading package…" : "Choose file"}</button>
-            {error && <div className="callout warn">{error}</div>}
-          </div>
-          <ul className="features">
-            <li><strong>Everything in one place</strong> Workflows, actions, configuration elements, resource elements and Python/Node/PowerShell environments, grouped by folder or module.</li>
-            <li><strong>Read the code</strong> Every scriptable task and action with syntax highlighting, plus full-text search across the package.</li>
-            <li><strong>See how it fits together</strong> Workflow schema diagrams, bindings, input forms, and what uses what.</li>
-            <li><strong>Stays on your machine</strong> The package is parsed in your browser and never uploaded anywhere.</li>
-          </ul>
-        </main>
+        <Landing onPick={() => inputRef.current?.click()} busy={busy} error={error} dragging={drag} />
       ) : (
         <div className={`shell ${navOpen ? "nav-open" : ""}`}>
           <Sidebar pkg={pkg} selected={view.kind === "element" ? el?.id : undefined} onSelect={(id) => go({ kind: "element", id })} />
@@ -206,11 +198,27 @@ export default function App() {
   );
 }
 
-function Logo({ size = 22 }: { size?: number }) {
+/** Peek Box mark. `size` <= 32 uses the simplified small-size drawing. */
+function Logo({ size = 24 }: { size?: number }) {
+  const small = size <= 32;
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden>
-      <rect width="32" height="32" rx="7" fill="var(--accent)" />
-      <path d="M8 11l8-4 8 4v10l-8 4-8-4z M8 11l8 4 8-4M16 15v10" fill="none" stroke="white" strokeWidth="2" strokeLinejoin="round" />
+    <svg className="logo" width={size} height={size} viewBox={small ? "5 11 54 50" : "0 0 64 64"} fill="none" aria-hidden>
+      {small ? (
+        <>
+          <path d="M12.5 27.5 Q23.5 16.5 34.5 27.5 Q23.5 35 12.5 27.5z" fill="var(--brand-amber)" />
+          <circle cx="24" cy="27" r="4" fill="var(--brand-ink)" />
+        </>
+      ) : (
+        <>
+          <path d="M14 28 Q24 18.5 34 28 Q24 34.5 14 28z" fill="var(--brand-amber)" />
+          <circle cx="25" cy="27.6" r="3.4" fill="var(--brand-ink)" />
+        </>
+      )}
+      <path d="M9 33h46v19a5 5 0 0 1-5 5H14a5 5 0 0 1-5-5z" fill="var(--brand-fg)" />
+      {!small && <path d="M32 33v24" stroke="var(--bg)" strokeWidth="2.5" opacity=".35" />}
+      <g transform="rotate(17 55 33)">
+        <rect x="9" y="24.5" width="48" height="8.5" rx="3" fill="var(--brand-fg)" />
+      </g>
     </svg>
   );
 }

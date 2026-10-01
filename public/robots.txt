@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://vro-peekage.vercel.app/sitemap.xml

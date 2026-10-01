@@ -1,14 +1,14 @@
 {
-  "name": "vro-package-viewer",
+  "name": "vro-peekage",
   "version": "0.1.0",
   "private": true,
-  "description": "Browser-only viewer for VMware vRO / Aria Orchestrator / VCF Automation Orchestrator .package files",
+  "description": "vRO Peekage: browse vRealize / Aria Automation / VCF Operations Orchestrator .package files in your browser, no Orchestrator needed",
   "author": "imtrinity94",
   "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && node scripts/prerender.mjs",
     "build:single": "tsc --noEmit && vite build --mode single",
     "preview": "vite preview",
     "test:parse": "node scripts/parse-test.mjs"
