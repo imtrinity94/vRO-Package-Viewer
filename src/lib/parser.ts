@@ -12,6 +12,9 @@ import type {
   Param,
   PkgElement,
   ResourceElement,
+  RunElement,
+  RunValue,
+  ProfileNode,
   WfItem,
   WorkflowElement,
 } from "./types";
@@ -89,6 +92,17 @@ const attr = (el: Element | null | undefined, name: string) => {
   if (!el || !el.hasAttribute(name)) return undefined;
   return el.getAttribute(name) ?? undefined;
 };
+/** vRO writes `encoded="true"` scripts as hex UTF-16 code units (4 hex digits per char). */
+export function decodeEncoded(text: string | undefined): string | undefined {
+  if (!text) return text;
+  const t = text.trim();
+  if (t.length % 4 !== 0 || !/^[0-9a-fA-F]+$/.test(t)) return text;
+  let out = "";
+  for (let i = 0; i < t.length; i += 4) out += String.fromCharCode(parseInt(t.slice(i, i + 4), 16));
+  return out;
+}
+const scriptText = (el: Element | undefined) =>
+  el ? (attr(el, "encoded") === "true" ? decodeEncoded(txt(el)) : txt(el)) : undefined;
 const num = (v: string | undefined) => (v === undefined || v === "" ? undefined : Number(v));
 
 /** Parse a java.util.Properties XML document (info, dunes-meta-inf). */
@@ -176,7 +190,7 @@ function parseWorkflow(base: BaseElement, doc: Document, inputForms: WorkflowEle
       type: attr(it, "type") ?? "",
       displayName: txt(kid(it, "display-name")) || undefined,
       description: txt(kid(it, "description")) || undefined,
-      script: script ? txt(script) : undefined,
+      script: scriptText(script),
       runtime: txt(kid(it, "runtime")) || undefined,
       outName: attr(it, "out-name"),
       altOutName: attr(it, "alt-out-name"),
@@ -233,7 +247,7 @@ function parseAction(base: BaseElement, doc: Document): ActionElement {
     type: attr(p, "t") ?? attr(p, "type") ?? "",
     description: (p.textContent || "").trim() || undefined,
   }));
-  const script = txt(kid(root, "script")) ?? "";
+  const script = scriptText(kid(root, "script")) ?? "";
   const runtime = attr(root, "runtime") ?? txt(kid(root, "runtime")) ?? undefined;
   const module = base.path.join(".") || "(no module)";
   const name = attr(root, "name") ?? base.name;
@@ -434,6 +448,10 @@ async function parseElement(folderId: string, files: JSZip.JSZipObject[], signed
   }
   if (type === "ResourceElement") return parseResource(base, byName.get("data"));
   if (type === "ActionEnvironment") return parseEnvironment(base, byName.get("bundle"));
+  if (type === "WorkflowToken" && raw) {
+    const doc = parseXml(raw);
+    if (doc) return parseRun(base, doc, textByName);
+  }
 
   const g: GenericElement = { ...base, kind: "generic" };
   if (raw) {
@@ -556,6 +574,106 @@ async function parseEnvironment(base: BaseElement, bundle: JSZip.JSZipObject | u
   };
 }
 
+function epoch(v: string | undefined): Date | undefined {
+  if (!v || v === "null" || v === "0") return undefined;
+  const n = Number(v);
+  if (!isFinite(n)) return undefined;
+  return new Date(n < 1e11 ? n * 1000 : n);
+}
+const nul = (v: string | undefined) => (v === undefined || v === "null" || v === "" ? undefined : v);
+
+function parseRun(base: BaseElement, doc: Document, textByName: Record<string, string>): RunElement {
+  const root = doc.documentElement;
+  const values: RunValue[] = [];
+  kids(root, "atts").forEach((block, bi) => {
+    const atts = [...kids(block, "att"), ...kids(block, "stack").flatMap((st) => kids(st, "att"))];
+    for (const a of atts)
+      values.push({
+        name: attr(a, "n") ?? attr(a, "name") ?? "",
+        type: attr(a, "t") ?? attr(a, "type") ?? "",
+        value: txt(a),
+        scope: attr(a, "s"),
+        block: bi,
+      });
+  });
+  const exc = txt(kid(root, "exception"))?.trim();
+
+  const tags: RunElement["tags"] = [];
+  const tagDoc = textByName["tags"] ? parseXml(textByName["tags"]) : null;
+  if (tagDoc)
+    for (const t of kids(tagDoc.documentElement, "tag"))
+      tags.push({ name: attr(t, "name") ?? "", value: attr(t, "value") ?? "", global: attr(t, "global") === "true" });
+
+  let profile: RunElement["profile"];
+  const extensions: RunElement["extensions"] = [];
+  for (const [name, text] of Object.entries(textByName)) {
+    if (!name.startsWith("extensions/")) continue;
+    let json: unknown;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      json = undefined;
+    }
+    if (name === "extensions/profiler.json" && json && typeof json === "object") {
+      const items: ProfileNode[] = [];
+      type PJ = { id?: string; metrics?: Record<string, number>; childActivities?: Record<string, PJ> };
+      const walk = (node: PJ, depth: number) => {
+        for (const [k, c] of Object.entries(node.childActivities ?? {})) {
+          items.push({
+            id: c.id ?? k,
+            depth,
+            totalTime: c.metrics?.totalTime,
+            maxTime: c.metrics?.maxTime,
+            executions: c.metrics?.numberOfExecutions,
+          });
+          walk(c, depth + 1);
+        }
+      };
+      walk(json as PJ, 0);
+      profile = { metrics: (json as PJ).metrics ?? {}, items };
+    } else {
+      extensions.push({ name: name.slice("extensions/".length), text, json });
+    }
+  }
+
+  const wfStack = (attr(root, "wfExecutionStack") ?? "").split("/").filter(Boolean);
+  const title = attr(root, "title") || base.name;
+  return {
+    ...base,
+    kind: "run",
+    name: `Run · ${title.trim()}`,
+    title: title.trim(),
+    workflowId: wfStack[0],
+    workflowStack: wfStack,
+    itemStack: (attr(root, "itemNameStack") ?? "").split("/").filter(Boolean),
+    currentItemState: nul(attr(root, "currentItemState")),
+    globalState: nul(attr(root, "globalState")),
+    businessState: nul(attr(root, "businessState")),
+    start: epoch(attr(root, "startDate")),
+    end: epoch(attr(root, "endDate")),
+    values,
+    exception: exc || undefined,
+    transitionType: attr(kid(root, "transitionType"), "value"),
+    ancestorTokenId: nul(attr(root, "ancestorTokenId")),
+    tags,
+    profile,
+    extensions,
+    scripts: values
+      .filter((v) => v.value && v.value !== "__NULL__" && v.type !== "SecureString")
+      .map((v) => ({ label: `value ${v.name}`, code: v.value!, lang: "plaintext" })),
+  };
+}
+
+export function formatDuration(ms?: number): string {
+  if (ms === undefined || !isFinite(ms)) return "–";
+  if (ms < 1000) return `${Math.round(ms)} ms`;
+  const s = ms / 1000;
+  if (s < 60) return `${s.toFixed(s < 10 ? 2 : 1)} s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ${Math.round(s % 60)}s`;
+  return `${Math.floor(m / 60)}h ${m % 60}m`;
+}
+
 /* ------------------------------------------------------------------ */
 /* Value helpers                                                       */
 /* ------------------------------------------------------------------ */
@@ -580,9 +698,46 @@ export function prettyValue(v: string | undefined): string | undefined {
     });
     return "{ " + parts.join(", ") + " }";
   }
+  // Token-style length-prefixed properties: {10:8:mountPoint=string#/\n}
+  if (/^\{\d+:\d+:/.test(v)) {
+    const props = parseLengthPrefixed(v);
+    if (props) return "{ " + props.map(([k, val]) => `${k}: ${JSON.stringify(val)}`).join(", ") + " }";
+  }
   const sdk = /^dunes:\/\/service\.dunes\.ch\/([^?]+)\?id='([^']*)'(?:&dunesName='([^']*)')?/.exec(v);
-  if (sdk) return `${sdk[1]} → ${sdk[2]}${sdk[3] ? ` (${sdk[3]})` : ""}`;
+  if (sdk) {
+    let id = sdk[2];
+    try {
+      id = decodeURIComponent(id);
+    } catch {
+      /* keep */
+    }
+    return `${sdk[1]} → ${id}${sdk[3] && sdk[3] !== sdk[1] ? ` (${sdk[3]})` : ""}`;
+  }
   return v;
+}
+
+/** Parse vRO token serialisation `{klen:vlen:key=type#value\n...}` into [key, value] pairs. */
+function parseLengthPrefixed(v: string): [string, string][] | null {
+  const body = v.slice(1, v.endsWith("}") ? -1 : undefined);
+  const out: [string, string][] = [];
+  let i = 0;
+  while (i < body.length) {
+    if (body[i] === "\n" || body[i] === "\r") {
+      i++;
+      continue;
+    }
+    const m = /^(\d+):(\d+):/.exec(body.slice(i, i + 24));
+    if (!m) return null;
+    i += m[0].length;
+    const key = body.substr(i, Number(m[1]));
+    i += Number(m[1]);
+    if (body[i] !== "=") return null;
+    i++;
+    const val = body.substr(i, Number(m[2]));
+    i += Number(m[2]);
+    out.push([key, val.replace(/^[A-Za-z:]+#/, "")]);
+  }
+  return out;
 }
 
 export function kindLabel(kind: PkgElement["kind"], type?: string): string {
@@ -592,6 +747,7 @@ export function kindLabel(kind: PkgElement["kind"], type?: string): string {
     case "config": return "Configuration Element";
     case "resource": return "Resource Element";
     case "environment": return "Environment";
+    case "run": return "Workflow run";
     default: return type || "Other";
   }
 }

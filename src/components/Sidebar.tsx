@@ -3,6 +3,7 @@ import type { PackageInfo, PkgElement } from "../lib/types";
 import { KindIcon } from "./Icons";
 
 const GROUPS: { kind: PkgElement["kind"]; label: string }[] = [
+  { kind: "run", label: "Workflow runs" },
   { kind: "workflow", label: "Workflows" },
   { kind: "action", label: "Actions" },
   { kind: "config", label: "Configuration Elements" },

@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import type { PackageInfo, PkgElement } from "../lib/types";
-import { formatBytes, kindLabel } from "../lib/parser";
+import { formatBytes, formatDuration, kindLabel } from "../lib/parser";
 import { KindIcon } from "./Icons";
+import { StateChip } from "./RunView";
 
 function csvCell(v: unknown) {
   const s = v === undefined || v === null ? "" : String(v);
@@ -24,6 +25,7 @@ function summary(e: PkgElement): string {
     case "config": return `${e.attributes.length} attributes`;
     case "resource": return `${e.mimeType ?? "?"} · ${formatBytes(e.size)}`;
     case "environment": return `${e.runtime ?? ""} · ${Object.keys(e.dependencies).length} deps`;
+    case "run": return `${e.globalState ?? "?"} · ${e.start && e.end ? formatDuration(e.end.getTime() - e.start.getTime()) : "–"}`;
     default: return e.type;
   }
 }
@@ -33,17 +35,18 @@ type SortKey = "kind" | "name" | "path" | "version";
 export function Overview({ pkg, onNav }: { pkg: PackageInfo; onNav: (id: string) => void }) {
   const [sort, setSort] = useState<{ k: SortKey; dir: 1 | -1 }>({ k: "kind", dir: 1 });
   const m = pkg.meta;
+  const runs = pkg.elements.filter((e) => e.kind === "run");
   const counts = pkg.elements.reduce<Record<string, number>>((a, e) => ((a[e.kind] = (a[e.kind] ?? 0) + 1), a), {});
   const loc = useMemo(() => {
     const byLang: Record<string, number> = {};
     for (const e of pkg.elements) {
-      if (e.kind === "resource") continue;
+      if (e.kind === "resource" || e.kind === "run") continue;
       for (const s of e.scripts) byLang[s.lang] = (byLang[s.lang] ?? 0) + s.code.split("\n").length;
     }
     return byLang;
   }, [pkg]);
   const rows = useMemo(() => {
-    const order: PkgElement["kind"][] = ["workflow", "action", "config", "resource", "environment", "generic"];
+    const order: PkgElement["kind"][] = ["run", "workflow", "action", "config", "resource", "environment", "generic"];
     const val = (e: PkgElement, k: SortKey) => (k === "kind" ? String(order.indexOf(e.kind)).padStart(2, "0") + e.name.toLowerCase() : k === "path" ? e.path.join("/").toLowerCase() : k === "version" ? e.version ?? "" : e.name.toLowerCase());
     return [...pkg.elements].sort((a, b) => (val(a, sort.k) < val(b, sort.k) ? -sort.dir : val(a, sort.k) > val(b, sort.k) ? sort.dir : 0));
   }, [pkg, sort]);
@@ -61,7 +64,7 @@ export function Overview({ pkg, onNav }: { pkg: PackageInfo; onNav: (id: string)
   };
   const exportMd = () => {
     const out: string[] = [`# ${m["pkg-name"] || pkg.fileName}`, "", `- vRO version: ${m["vso-version"] ?? "?"}`, `- Package ID: ${m["pkg-id"] ?? "?"}`, ""];
-    const groups: [PkgElement["kind"], string][] = [["workflow", "Workflows"], ["action", "Actions"], ["config", "Configuration Elements"], ["resource", "Resource Elements"], ["environment", "Environments"], ["generic", "Other"]];
+    const groups: [PkgElement["kind"], string][] = [["run", "Workflow runs"], ["workflow", "Workflows"], ["action", "Actions"], ["config", "Configuration Elements"], ["resource", "Resource Elements"], ["environment", "Environments"], ["generic", "Other"]];
     for (const [k, label] of groups) {
       const els = pkg.elements.filter((e) => e.kind === k);
       if (!els.length) continue;
@@ -107,6 +110,7 @@ export function Overview({ pkg, onNav }: { pkg: PackageInfo; onNav: (id: string)
         <h1>{m["pkg-name"] || pkg.fileName}</h1>
         <div className="chips">
           {m["vso-version"] && <span className="chip">vRO {m["vso-version"]}</span>}
+          {runs.length > 0 && <span className="chip accent">run export</span>}
           {m["pkg-id"] && <span className="chip mono">{m["pkg-id"]}</span>}
           <span className="chip">{formatBytes(pkg.fileSize)}</span>
           {pkg.signed ? <span className="chip ok">signed</span> : <span className="chip warn">unsigned</span>}
@@ -119,6 +123,28 @@ export function Overview({ pkg, onNav }: { pkg: PackageInfo; onNav: (id: string)
         </div>
       )}
 
+      {runs.length > 0 && (
+        <section className="card run-card">
+          <h3><KindIcon kind="run" size={16} /> {runs.length === 1 ? "This package contains a recorded workflow run" : `Recorded workflow runs`} <span className="count">{runs.length}</span></h3>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Status</th><th>Workflow</th><th>Started</th><th>Duration</th><th></th></tr></thead>
+              <tbody>
+                {runs.map((r) => r.kind === "run" && (
+                  <tr key={r.id} className="clickable-row" onClick={() => onNav(r.id)}>
+                    <td><StateChip state={r.globalState} /></td>
+                    <td className="strong">{r.title}</td>
+                    <td className="small nowrap">{r.start?.toLocaleString() ?? "–"}</td>
+                    <td className="mono small">{r.start && r.end ? formatDuration(r.end.getTime() - r.start.getTime()) : "–"}</td>
+                    <td><button className="link">Open run →</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
       <div className="tiles">
         {([
           ["workflow", "Workflows"],
@@ -126,6 +152,7 @@ export function Overview({ pkg, onNav }: { pkg: PackageInfo; onNav: (id: string)
           ["config", "Config elements"],
           ["resource", "Resource elements"],
           ["environment", "Environments"],
+          ["run", "Workflow runs"],
           ["generic", "Other"],
         ] as const).filter(([k]) => counts[k] || k === "workflow" || k === "action").map(([k, label]) => (
           <div key={k} className="tile">

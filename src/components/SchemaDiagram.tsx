@@ -1,4 +1,5 @@
 import type { WorkflowElement, WfItem } from "../lib/types";
+import { formatDuration } from "../lib/parser";
 
 const W = 150;
 const H = 44;
@@ -29,14 +30,24 @@ function typeLabel(it: WfItem) {
   return it.type;
 }
 
+export interface RunOverlay {
+  /** items that executed, with profiler timings when available */
+  ran: Map<string, { ms?: number; count?: number }>;
+  /** item the token stopped on */
+  current?: string;
+  failed?: boolean;
+}
+
 export function SchemaDiagram({
   wf,
   selected,
   onSelect,
+  run,
 }: {
   wf: WorkflowElement;
   selected?: string;
   onSelect: (name: string) => void;
+  run?: RunOverlay;
 }) {
   const rawItems = wf.items.filter((i) => i.x !== undefined && i.y !== undefined);
   if (!rawItems.length) return <p className="muted">No schema layout information in this workflow.</p>;
@@ -89,12 +100,12 @@ export function SchemaDiagram({
       <svg
         className="schema"
         viewBox={`${minX} ${minY} ${maxX - minX} ${maxY - minY}`}
-        style={{ minWidth: Math.min(maxX - minX, 1400) }}
+        style={{ minWidth: Math.min(maxX - minX, 1400), maxWidth: Math.max(Math.min(maxX - minX, 1400), (maxX - minX) * 1.25) }}
         role="img"
         aria-label={`Schema of workflow ${wf.name}`}
       >
         <defs>
-          {(["out", "alt", "catch", "switch"] as const).map((k) => (
+          {(["out", "alt", "catch", "switch", "ran"] as const).map((k) => (
             <marker key={k} id={`arr-${k}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
               <path d="M0,0 L10,5 L0,10 z" className={`arrow-${k}`} />
             </marker>
@@ -106,7 +117,7 @@ export function SchemaDiagram({
           const e = root.type === "end" ? clip(s, center(root), 16, 16) : clip(s, center(root));
           return (
             <g>
-              <line x1={s.x + 12} y1={s.y} x2={e.x} y2={e.y} className="edge edge-out" markerEnd="url(#arr-out)" />
+              <line x1={s.x + 12} y1={s.y} x2={e.x} y2={e.y} className={`edge ${run ? "edge-ran" : "edge-out"}`} markerEnd={`url(#arr-${run ? "ran" : "out"})`} />
               <circle cx={s.x} cy={s.y} r={12} className="n-start" />
               <text x={s.x} y={s.y + 28} className="n-sub" textAnchor="middle">start</text>
             </g>
@@ -120,24 +131,28 @@ export function SchemaDiagram({
           const aIt = byName.get(e.from)!;
           const s = aIt.type === "end" ? clip(b, a, 16, 16) : clip(b, a);
           const t = bIt.type === "end" ? clip(a, b, 16, 16) : clip(a, b);
+          const ranEdge = run && run.ran.has(e.from) && run.ran.has(e.to);
           return (
-            <line key={i} x1={s.x} y1={s.y} x2={t.x} y2={t.y} className={`edge edge-${e.kind}`} markerEnd={`url(#arr-${e.kind})`} />
+            <line key={i} x1={s.x} y1={s.y} x2={t.x} y2={t.y} className={`edge edge-${e.kind}${ranEdge ? " edge-ran" : run ? " edge-dim" : ""}`} markerEnd={`url(#arr-${ranEdge ? "ran" : e.kind})`} />
           );
         })}
 
         {items.map((it) => {
           const label = it.displayName || it.name;
+          const r = run?.ran.get(it.name);
+          const runCls = run ? (r ? (run.current === it.name && run.failed ? " run-failed" : " run-ok") : " run-skip") : "";
+          const sub = r ? (r.ms !== undefined ? `${formatDuration(r.ms)}${r.count && r.count > 1 ? ` · ×${r.count}` : ""}` : "ran") : typeLabel(it);
           const short = label.length > 21 ? label.slice(0, 20) + "…" : label;
           return (
             <g
               key={it.name}
-              className={`node ${nodeClass(it)} ${selected === it.name ? "sel" : ""}`}
+              className={`node ${nodeClass(it)} ${selected === it.name ? "sel" : ""}${runCls}`}
               transform={`translate(${it.x},${it.y})`}
               onClick={() => onSelect(it.name)}
               tabIndex={0}
               onKeyDown={(ev) => ev.key === "Enter" && onSelect(it.name)}
             >
-              <title>{`${label} — ${typeLabel(it)} (${it.name})`}</title>
+              <title>{`${label} — ${typeLabel(it)} (${it.name})${r?.ms !== undefined ? ` — ${formatDuration(r.ms)}` : ""}`}</title>
               {it.type === "end" ? (
                 <circle cx={W / 2} cy={H / 2} r={14} />
               ) : (
@@ -146,7 +161,7 @@ export function SchemaDiagram({
               {it.type !== "end" && (
                 <>
                   <text x={W / 2} y={18} textAnchor="middle" className="n-label">{short}</text>
-                  <text x={W / 2} y={34} textAnchor="middle" className="n-sub">{typeLabel(it)}</text>
+                  <text x={W / 2} y={34} textAnchor="middle" className={r ? "n-sub n-time" : "n-sub"}>{sub}</text>
                 </>
               )}
               {it.type === "end" && (
@@ -157,6 +172,7 @@ export function SchemaDiagram({
         })}
       </svg>
       <div className="legend">
+        {run && <span><i className="lg lg-ran" /> path taken in this run</span>}
         <span><i className="lg lg-out" /> next</span>
         <span><i className="lg lg-alt" /> false / alternative</span>
         <span><i className="lg lg-catch" /> error handler</span>

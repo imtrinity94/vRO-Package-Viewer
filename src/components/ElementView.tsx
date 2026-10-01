@@ -15,12 +15,13 @@ import { formatBytes, isTextMime, kindLabel, langForMime, prettyValue, decodeTex
 import { CodeBlock } from "./CodeBlock";
 import { SchemaDiagram } from "./SchemaDiagram";
 import { KindIcon } from "./Icons";
+import { RunView } from "./RunView";
 
 type Nav = (id: string) => void;
 
 /* ------------------------------ shared ------------------------------ */
 
-function download(name: string, bytes: Uint8Array | string, mime = "application/octet-stream") {
+export function download(name: string, bytes: Uint8Array | string, mime = "application/octet-stream") {
   const blob = new Blob([bytes as BlobPart], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -30,7 +31,7 @@ function download(name: string, bytes: Uint8Array | string, mime = "application/
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { id: T; label: string; count?: number }[]; value: T; onChange: (t: T) => void }) {
+export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { id: T; label: string; count?: number }[]; value: T; onChange: (t: T) => void }) {
   return (
     <div className="tabs" role="tablist">
       {tabs.map((t) => (
@@ -43,7 +44,7 @@ function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { id: T; labe
   );
 }
 
-function Header({ el, children }: { el: PkgElement; children?: React.ReactNode }) {
+export function Header({ el, children }: { el: PkgElement; children?: React.ReactNode }) {
   const [copied, setCopied] = useState(false);
   return (
     <header className="el-head">
@@ -133,7 +134,7 @@ function RefList({ ids, pkg, onNav, empty }: { ids: Set<string> | undefined; pkg
   );
 }
 
-function RefsPanel({ el, pkg, onNav }: { el: PkgElement; pkg: PackageInfo; onNav: Nav }) {
+export function RefsPanel({ el, pkg, onNav }: { el: PkgElement; pkg: PackageInfo; onNav: Nav }) {
   const id = el.id.toLowerCase();
   const external = useMemo(() => {
     // System.getModule calls to actions NOT in this package
@@ -172,7 +173,7 @@ function RefsPanel({ el, pkg, onNav }: { el: PkgElement; pkg: PackageInfo; onNav
   );
 }
 
-function FilesPanel({ el }: { el: PkgElement }) {
+export function FilesPanel({ el }: { el: PkgElement }) {
   const [open, setOpen] = useState<string | null>(el.files.find((f) => f.name === "data" && f.text) ? "data" : null);
   return (
     <div>
@@ -199,7 +200,7 @@ function FilesPanel({ el }: { el: PkgElement }) {
   );
 }
 
-function tryPretty(t: string) {
+export function tryPretty(t: string) {
   try {
     return JSON.stringify(JSON.parse(t), null, 2);
   } catch {
@@ -356,6 +357,14 @@ function WorkflowView({ el, pkg, onNav, term }: { el: WorkflowElement; pkg: Pack
     <>
       <Header el={el}>
         {el.apiVersion && <span className="chip">api {el.apiVersion}</span>}
+        {pkg.elements
+          .filter((r) => r.kind === "run" && r.workflowId?.toLowerCase() === el.id.toLowerCase())
+          .slice(0, 5)
+          .map((r) => (
+            <button key={r.id} className="chip clickable run-chip" onClick={() => onNav(r.id)} title="Open this recorded run">
+              <KindIcon kind="run" /> Run{r.kind === "run" && r.globalState ? ` · ${r.globalState}` : ""}
+            </button>
+          ))}
         {polyglot && <span className="chip accent">polyglot</span>}
       </Header>
       <Tabs<T>
@@ -615,6 +624,7 @@ export function ElementView({ el, pkg, onNav, term }: { el: PkgElement; pkg: Pac
     case "config": return <ConfigView key={el.id} el={el} pkg={pkg} onNav={onNav} />;
     case "resource": return <ResourceView key={el.id} el={el} pkg={pkg} onNav={onNav} />;
     case "environment": return <EnvironmentView key={el.id} el={el} pkg={pkg} onNav={onNav} />;
+    case "run": return <RunView key={el.id} el={el} pkg={pkg} onNav={onNav} />;
     default:
       return (
         <>

@@ -11,6 +11,8 @@ const paths: Record<PkgElement["kind"], string> = {
   resource: "M6 2h8l4 4v16H6zM14 2v4h4",
   // box
   environment: "M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10",
+  // play in circle
+  run: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM10 8.5v7l5.5-3.5z",
   generic: "M4 4h16v16H4z",
 };
 

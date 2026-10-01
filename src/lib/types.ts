@@ -122,6 +122,48 @@ export interface EnvironmentElement extends BaseElement {
   getBundleBytes: () => Promise<Uint8Array | undefined>;
 }
 
+export interface RunValue {
+  name: string;
+  type: string;
+  value?: string;
+  /** which <atts> block it came from (0 = main stack) */
+  block: number;
+  scope?: string;
+}
+
+export interface ProfileNode {
+  id: string;
+  depth: number;
+  totalTime?: number;
+  maxTime?: number;
+  executions?: number;
+}
+
+export interface RunElement extends BaseElement {
+  kind: "run";
+  title: string;
+  workflowId?: string;
+  /** workflow ids from outermost to innermost (nested sub-workflow calls) */
+  workflowStack: string[];
+  itemStack: string[];
+  currentItemState?: string;
+  globalState?: string;
+  businessState?: string;
+  start?: Date;
+  end?: Date;
+  values: RunValue[];
+  exception?: string;
+  transitionType?: string;
+  ancestorTokenId?: string;
+  tags: { name: string; value: string; global: boolean }[];
+  profile?: {
+    metrics: Record<string, number>;
+    items: ProfileNode[];
+  };
+  /** extension files other than the profiler (e.g. logs), parsed when JSON */
+  extensions: { name: string; text: string; json?: unknown }[];
+}
+
 export interface GenericElement extends BaseElement {
   kind: "generic";
 }
@@ -132,6 +174,7 @@ export type PkgElement =
   | ConfigElement
   | ResourceElement
   | EnvironmentElement
+  | RunElement
   | GenericElement;
 
 export interface PackageInfo {
