@@ -603,3 +603,18 @@ a.btn-ghost { text-decoration: none; }
 :root[data-theme="dark"] .tree-group-head { color: var(--muted); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tree-group-head { color: var(--muted); } }
 code, .mono, pre { font-family: var(--mono); }
+
+/* ---------- Orchestrator-style workflow schema ---------- */
+.wf-schema { display: flex; flex-direction: column; gap: 10px; }
+.wf-toolbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.wf-zoom { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--border); border-radius: 8px; padding: 2px; }
+.wf-zoom-val { min-width: 44px; text-align: center; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.wf-view { overflow: auto; max-height: 72vh; border: 1px solid var(--border); border-radius: 10px; background: #fafcfd; cursor: grab; touch-action: pan-x pan-y; }
+.wf-view:active { cursor: grabbing; }
+.wf-node { cursor: pointer; outline: none; }
+.wf-node:hover .wf-hit { fill: rgba(0, 124, 187, 0.08); }
+.wf-node:focus-visible .wf-hit { stroke: #0079ad; stroke-width: 2; }
+.lg-wf-blue { border-color: #0079ad; }
+.lg-wf-green { border-color: #2e8540; }
+.lg-wf-red { border-color: #c92100; border-top-style: dashed; }
+.lg-wf-ran { border-color: #2e8540; border-top-width: 6px; opacity: 0.5; }

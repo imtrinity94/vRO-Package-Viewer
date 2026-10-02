@@ -197,6 +197,8 @@ function parseWorkflow(base: BaseElement, doc: Document, inputForms: WorkflowEle
       catchName: attr(it, "catch-name"),
       linkedWorkflowId: attr(it, "linked-workflow-id"),
       scriptModule: attr(it, "script-module"),
+      prototypeId: attr(it, "prototype-id"),
+      launchedWorkflowId: attr(it, "launched-workflow-id"),
       endMode: attr(it, "end-mode"),
       inBindings: parseBinds(kid(it, "in-binding")),
       outBindings: parseBinds(kid(it, "out-binding")),
@@ -235,6 +237,7 @@ function parseWorkflow(base: BaseElement, doc: Document, inputForms: WorkflowEle
     attributes: parseAttribs(root, "attrib"),
     items,
     start: pos ? { x: Number(attr(pos, "x") ?? 0), y: Number(attr(pos, "y") ?? 0) } : undefined,
+    errorHandlers: kids(root, "error-handler").map((e) => attr(e, "name") ?? "").filter(Boolean),
     inputForms,
     scripts,
   };

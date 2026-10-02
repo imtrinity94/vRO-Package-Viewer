@@ -1,6 +1,7 @@
 import type { RefObject } from "react";
 import { CodeBlock } from "./CodeBlock";
 import { KindIcon } from "./Icons";
+import { VRO_ICONS } from "../lib/vroIcons";
 import type { PkgElement } from "../lib/types";
 
 const REPO = "https://github.com/imtrinity94/vRO-Package-Viewer";
@@ -49,38 +50,43 @@ function PeekBox() {
   );
 }
 
+const iconUri = (n: string) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(VRO_ICONS[n])}`;
+
+/** A tiny example drawn like the real schema view: Orchestrator icons, run path highlighted. */
 function MiniSchema() {
+  const font = "'Clarity City', Arial, sans-serif";
+  const nodes: { x: number; icon: string; label: string; time?: string; ran?: boolean; y?: number }[] = [
+    { x: 20, icon: "start", label: "Start" },
+    { x: 150, icon: "scriptable-task", label: "Run guest script", time: "5.96 s", ran: true },
+    { x: 290, icon: "condition", label: "Exit code 0?", ran: true },
+    { x: 430, icon: "end", label: "End", ran: true },
+    { x: 290, icon: "exception", label: "Throw", y: 118 },
+  ];
   return (
-    <svg className="schema mini-schema" viewBox="0 0 520 120" role="img" aria-label="Example workflow schema: start, a script task, a decision, and two ends">
+    <svg className="mini-schema" viewBox="0 0 560 220" role="img" aria-label="Example workflow schema: start, a scriptable task that ran in 5.96 seconds, a decision, an end, and an unused exception path">
       <defs>
-        <marker id="mini-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-          <path d="M0,0 L10,5 L0,10 z" className="arrow-ran" />
-        </marker>
-        <marker id="mini-arr-alt" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-          <path d="M0,0 L10,5 L0,10 z" className="arrow-alt" />
-        </marker>
+        <pattern id="mini-dots" width="18" height="18" patternUnits="userSpaceOnUse"><circle cx="9" cy="9" r="1" fill="#cbd4d8" /></pattern>
+        {([["b", "#0079ad"], ["g", "#2e8540"], ["r", "#c92100"]] as const).map(([k, c]) => (
+          <marker key={k} id={`mini-${k}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10z" fill={c} /></marker>
+        ))}
       </defs>
-      <line x1="42" y1="46" x2="86" y2="46" className="edge edge-ran" markerEnd="url(#mini-arr)" />
-      <line x1="226" y1="46" x2="270" y2="46" className="edge edge-ran" markerEnd="url(#mini-arr)" />
-      <line x1="390" y1="46" x2="456" y2="46" className="edge edge-ran" markerEnd="url(#mini-arr)" />
-      <line x1="330" y1="68" x2="330" y2="96" className="edge edge-alt" markerEnd="url(#mini-arr-alt)" />
-      <circle cx="28" cy="46" r="12" className="n-start" />
-      <g className="node n-poly run-ok" transform="translate(88,24)">
-        <rect width="136" height="44" rx="7" />
-        <text x="68" y="19" textAnchor="middle" className="n-label">Run guest script</text>
-        <text x="68" y="35" textAnchor="middle" className="n-sub n-time">5.96 s</text>
-      </g>
-      <g className="node n-decision run-ok" transform="translate(272,24)">
-        <rect width="116" height="44" rx="20" />
-        <text x="58" y="19" textAnchor="middle" className="n-label">Exit code 0?</text>
-        <text x="58" y="35" textAnchor="middle" className="n-sub">decision</text>
-      </g>
-      <g className="node n-end run-ok" transform="translate(456,24)">
-        <circle cx="16" cy="22" r="13" />
-      </g>
-      <g className="node n-end n-throw run-skip" transform="translate(314,92)">
-        <circle cx="16" cy="12" r="10" />
-      </g>
+      <rect width="560" height="220" rx="10" fill="#fafcfd" />
+      <rect width="560" height="220" rx="10" fill="url(#mini-dots)" />
+      <path d="M100 36 L148 36" stroke="#0079ad" strokeWidth="2.7" markerEnd="url(#mini-b)" />
+      <path d="M238 36 L288 36" stroke="#0079ad" strokeWidth="2.7" markerEnd="url(#mini-b)" />
+      <path d="M378 36 L428 36" stroke="#2e8540" strokeWidth="2.7" markerEnd="url(#mini-g)" />
+      <path d="M350 92 L350 114" stroke="#c92100" strokeWidth="2" strokeDasharray="5,5" opacity="0.35" markerEnd="url(#mini-r)" />
+      {nodes.map((n) => {
+        const y = n.y ?? 10;
+        return (
+          <g key={n.label} transform={`translate(${n.x},${y})`} opacity={n.y ? 0.35 : 1}>
+            {n.ran && <rect x="4" y="-4" width="112" height="86" rx="8" fill="rgba(46,133,64,0.10)" stroke="#2e8540" strokeWidth="1.2" />}
+            <image href={iconUri(n.icon)} x="40" y="0" width="40" height="40" />
+            <text x="60" y="57" textAnchor="middle" fontSize="12" fontWeight="700" fill="#21333b" fontFamily={font}>{n.label}</text>
+            {n.time && <text x="60" y="72" textAnchor="middle" fontSize="11" fontWeight="700" fill="#1d6b2f" fontFamily={font}>{n.time}</text>}
+          </g>
+        );
+      })}
     </svg>
   );
 }

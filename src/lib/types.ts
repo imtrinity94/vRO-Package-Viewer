@@ -38,6 +38,8 @@ export interface WfItem {
   catchName?: string;
   linkedWorkflowId?: string;
   scriptModule?: string;
+  prototypeId?: string;
+  launchedWorkflowId?: string;
   endMode?: string;
   inBindings: Bind[];
   outBindings: Bind[];
@@ -81,6 +83,8 @@ export interface WorkflowElement extends BaseElement {
   attributes: Attrib[];
   items: WfItem[];
   start?: { x: number; y: number };
+  /** Items that have a workflow-level error handler attached (<error-handler name="item…">) */
+  errorHandlers: string[];
   inputForms: { name: string; json: unknown; text: string }[];
 }
 
