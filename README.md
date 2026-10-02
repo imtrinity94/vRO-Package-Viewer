@@ -2,9 +2,9 @@
 
 <img src="public/brand/peekbox-mark.svg" width="72" alt="vRO Peekage logo">
 
-**Your .package files, opened up — no Orchestrator needed.**
+**Peek into your vRO Packages — no Orchestrator needed.**
 
-_Formerly vRO Package Viewer._ · Live at **https://vro-peekage.vercel.app**
+_Formerly vRO Package Viewer._ · Live at **https://vro-package-viewer.vercel.app**
 
 Browse the contents of a `.package` file from **vRealize Orchestrator 7.x**, **Aria Automation Orchestrator 8.x** or **VCF Operations Orchestrator 9.x** in the browser — workflows, actions, configuration elements, resource elements and polyglot environments — without importing it into an Orchestrator.
 
@@ -55,7 +55,7 @@ npm run test:parse -- path/to/file.package   # parse a package in Node and print
 
 ## Deploy to Vercel
 
-The site's canonical address is `https://vro-peekage.vercel.app` (set in `index.html`, `public/sitemap.xml` and `public/robots.txt`). If you deploy elsewhere, update those three. Requests to the old `vro-package-viewer.vercel.app` host are permanently redirected to it by `vercel.json`, as long as that domain is still attached to the project.
+The site's canonical address is `https://vro-package-viewer.vercel.app` (set in `index.html`, `public/sitemap.xml` and `public/robots.txt`). If the site moves to another domain, update those three.
 
 `npm run build` also pre-renders the landing page into `dist/index.html`, so search engines and link previews see real content without running JavaScript.
 

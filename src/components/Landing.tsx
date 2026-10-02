@@ -110,7 +110,15 @@ export function Landing({ onPick, busy, error, dragging }: { onPick: () => void;
       <section className="lp-hero">
         <div className="lp-copy">
           <h1 className="lp-title">
-            Your <code>.package</code> files, opened up. No Orchestrator needed.
+            <span className="lp-peek">
+              <svg className="lp-peek-eye" viewBox="12 17 24 18" aria-hidden>
+                <path d="M13 27.5 Q24 17 35 27.5 Q24 35 13 27.5z" fill="var(--brand-amber)" />
+                <circle cx="25" cy="27" r="4.2" fill="var(--brand-ink)" />
+              </svg>
+              Peek
+            </span>{" "}
+            into your vRO Packages
+            <span className="lp-title-sub">No Orchestrator needed.</span>
           </h1>
           <p className="lp-lede">
             Drop a package exported from vRealize Orchestrator 7.x, Aria Automation Orchestrator 8.x or VCF Operations Orchestrator 9.x. Its workflows, actions, configuration and resource elements, scripts and recorded runs open right here in your browser.

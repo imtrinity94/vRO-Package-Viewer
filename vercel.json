@@ -21,18 +21,5 @@
         }
       ]
     }
-  ],
-  "redirects": [
-    {
-      "source": "/:path*",
-      "has": [
-        {
-          "type": "host",
-          "value": "vro-package-viewer.vercel.app"
-        }
-      ],
-      "destination": "https://vro-peekage.vercel.app/:path*",
-      "permanent": true
-    }
   ]
 }
