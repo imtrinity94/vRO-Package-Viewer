@@ -1,3 +1,4 @@
+import type { RefObject } from "react";
 import { CodeBlock } from "./CodeBlock";
 import { KindIcon } from "./Icons";
 import type { PkgElement } from "../lib/types";
@@ -104,9 +105,9 @@ function FlowSteps() {
   );
 }
 
-export function Landing({ onPick, busy, error, dragging }: { onPick: () => void; busy: boolean; error: string | null; dragging: boolean }) {
+export function Landing({ onPick, busy, error, dragging, scrollRef }: { onPick: () => void; busy: boolean; error: string | null; dragging: boolean; scrollRef?: RefObject<HTMLElement | null> }) {
   return (
-    <main className={`lp ${dragging ? "lp-dragging" : ""}`}>
+    <main ref={scrollRef} className={`lp ${dragging ? "lp-dragging" : ""}`}>
       <section className="lp-hero">
         <div className="lp-copy">
           <h1 className="lp-title">

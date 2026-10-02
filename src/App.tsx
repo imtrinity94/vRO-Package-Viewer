@@ -6,6 +6,7 @@ import { Overview } from "./components/Overview";
 import { ElementView } from "./components/ElementView";
 import { SearchView } from "./components/SearchView";
 import { Landing } from "./components/Landing";
+import { BackToTop } from "./components/BackToTop";
 
 type View = { kind: "overview" } | { kind: "search" } | { kind: "element"; id: string; term?: string };
 
@@ -23,6 +24,9 @@ function writeHash(v: View) {
 
 type Theme = "system" | "light" | "dark";
 
+/** The front page's own <title>, restored when going back home. */
+const HOME_TITLE = typeof document !== "undefined" ? document.title : "vRO Peekage";
+
 export default function App() {
   const [pkg, setPkg] = useState<PackageInfo | null>(null);
   const [busy, setBusy] = useState(false);
@@ -39,6 +43,7 @@ export default function App() {
   });
   const inputRef = useRef<HTMLInputElement>(null);
   const mainRef = useRef<HTMLElement>(null);
+  const landingRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (theme === "system") document.documentElement.removeAttribute("data-theme");
@@ -55,6 +60,16 @@ export default function App() {
     writeHash(v);
     setNavOpen(false);
     mainRef.current?.scrollTo({ top: 0 });
+  }, []);
+
+  /** Close the open package and return to the front page. */
+  const goHome = useCallback(() => {
+    setPkg(null);
+    setError(null);
+    setNavOpen(false);
+    setView({ kind: "overview" });
+    document.title = HOME_TITLE;
+    if (location.hash) history.pushState(null, "", location.pathname + location.search);
   }, []);
 
   useEffect(() => {
@@ -165,6 +180,12 @@ export default function App() {
           <>
             <span className="pkg-name ellipsis" title={pkg.fileName}>{pkg.meta["pkg-name"] || pkg.fileName}</span>
             <div className="spacer" />
+            <button className="btn-ghost home-btn" onClick={goHome} aria-label="Home" title="Close this package and go to the front page">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M3 10.5 12 3l9 7.5M5 9v11h5v-6h4v6h5V9" />
+              </svg>
+              <span>Home</span>
+            </button>
             <button className={`btn-ghost ${view.kind === "overview" ? "on" : ""}`} onClick={() => go({ kind: "overview" })}>Overview</button>
             <button className={`btn-ghost ${view.kind === "search" ? "on" : ""}`} onClick={() => go({ kind: "search" })}>Search</button>
             <button className="btn" onClick={() => inputRef.current?.click()}>Open…</button>
@@ -180,7 +201,7 @@ export default function App() {
       </header>
 
       {!pkg ? (
-        <Landing onPick={() => inputRef.current?.click()} busy={busy} error={error} dragging={drag} />
+        <Landing scrollRef={landingRef} onPick={() => inputRef.current?.click()} busy={busy} error={error} dragging={drag} />
       ) : (
         <div className={`shell ${navOpen ? "nav-open" : ""}`}>
           <Sidebar pkg={pkg} selected={view.kind === "element" ? el?.id : undefined} onSelect={(id) => go({ kind: "element", id })} />
@@ -194,6 +215,7 @@ export default function App() {
           </main>
         </div>
       )}
+      <BackToTop key={pkg ? "app" : "home"} target={pkg ? mainRef : landingRef} />
     </div>
   );
 }

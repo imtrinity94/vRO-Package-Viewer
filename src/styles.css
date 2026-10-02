@@ -510,3 +510,20 @@ a.btn-ghost { text-decoration: none; }
 .lp-peek { position: relative; display: inline-block; color: var(--brand-amber-text); }
 .lp-peek-eye { position: absolute; left: 50%; top: -0.32em; width: 0.62em; height: 0.46em; transform: translateX(-50%); }
 .lp-title-sub { display: block; margin-top: 0.28em; font-size: 0.52em; font-weight: 700; letter-spacing: -0.02em; color: var(--muted); }
+
+/* ---------- home + back to top ---------- */
+.home-btn { display: inline-flex; align-items: center; gap: 6px; }
+.to-top {
+  position: fixed; right: 24px; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); z-index: 40;
+  width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; cursor: pointer;
+  background: var(--brand-fg); color: var(--bg); border: 0; box-shadow: 0 6px 20px rgb(16 24 40 / 0.22);
+  opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.to-top.show { opacity: 1; transform: none; pointer-events: auto; }
+.to-top:hover { filter: brightness(1.15); }
+.to-top:focus-visible { outline: 3px solid var(--brand-amber); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .to-top { transition: none; } }
+@media (max-width: 860px) {
+  .home-btn span { display: none; }
+  .to-top { right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+}
