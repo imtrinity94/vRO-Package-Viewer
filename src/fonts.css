@@ -1,0 +1,36 @@
+/* Clarity City (c) VMware, Inc., SIL Open Font License 1.1. https://github.com/vmware/clarity-city */
+@font-face {
+  font-family: "Clarity City";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("@cds/city/Webfonts/WOFF2/ClarityCity-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Clarity City";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("@cds/city/Webfonts/WOFF2/ClarityCity-Medium.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Clarity City";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("@cds/city/Webfonts/WOFF2/ClarityCity-SemiBold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Clarity City";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("@cds/city/Webfonts/WOFF2/ClarityCity-Bold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Clarity City";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("@cds/city/Webfonts/WOFF2/ClarityCity-ExtraBold.woff2") format("woff2");
+}
