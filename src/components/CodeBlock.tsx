@@ -26,6 +26,12 @@ function escapeHtml(s: string) {
   return s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
 }
 
+/** Syntax-highlighted HTML for a code string (used by the report export). */
+export function highlightCode(code: string, lang: string): string {
+  if (code.length > MAX_HL || !hljs.getLanguage(lang)) return escapeHtml(code);
+  return hljs.highlight(code, { language: lang, ignoreIllegals: true }).value;
+}
+
 export function CodeBlock({
   code,
   lang = "javascript",

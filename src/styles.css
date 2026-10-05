@@ -618,3 +618,16 @@ code, .mono, pre { font-family: var(--mono); }
 .lg-wf-green { border-color: #2e8540; }
 .lg-wf-red { border-color: #c92100; border-top-style: dashed; }
 .lg-wf-ran { border-color: #2e8540; border-top-width: 6px; opacity: 0.5; }
+
+/* ---------- export everything ---------- */
+.export-card { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.export-copy { flex: 1 1 420px; min-width: 0; }
+.export-copy h3 { margin-bottom: 4px; }
+.export-copy p { margin: 0; max-width: 72ch; }
+.export-progress { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.export-progress progress { width: 220px; accent-color: var(--accent); }
+.export-ok { color: var(--ok); margin-top: 8px !important; }
+.export-err { color: var(--bad); margin-top: 8px !important; }
+.export-btn { display: inline-flex; align-items: center; gap: 6px; }
+.export-btn:disabled { opacity: 0.8; cursor: progress; }
+@media (max-width: 860px) { .export-btn span { display: none; } }

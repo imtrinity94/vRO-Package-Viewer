@@ -122,8 +122,11 @@ type Box = { x: number; y: number };
 type Edge = { from: string; to: string; color: string; marker: string; dash?: string; width: number };
 type Extra = { key: string; label: string; icon: string; pos: Box; target?: string };
 
-function useLayout(wf: WorkflowElement) {
-  return useMemo(() => {
+export type SchemaLayout = NonNullable<ReturnType<typeof computeLayout>>;
+
+/** Pure layout computation (also used by the export). */
+export function computeLayout(wf: WorkflowElement) {
+  {
     const items = wf.items.filter((i) => i.x !== undefined && i.y !== undefined);
     const pos = new Map<string, Box>();
     if (!items.length) return null;
@@ -163,7 +166,132 @@ function useLayout(wf: WorkflowElement) {
     const width = Math.max(...all.map((p) => p.x)) + NODE_W + MARGIN;
     const height = Math.max(...all.map((p) => p.y)) + NODE_H + MARGIN / 2;
     return { items, pos, extras, edges, width, height };
-  }, [wf]);
+  }
+}
+
+function useLayout(wf: WorkflowElement) {
+  return useMemo(() => computeLayout(wf), [wf]);
+}
+
+/**
+ * The schema drawing itself. Used interactively by SchemaDiagram and, without onSelect,
+ * to produce static SVG for exports.
+ */
+export function SchemaSvg({
+  wf,
+  layout,
+  run,
+  selected,
+  onSelect,
+  isDragging,
+  svgRef,
+  zoom = 1,
+}: {
+  wf: WorkflowElement;
+  layout: SchemaLayout;
+  run?: RunOverlay;
+  selected?: string;
+  onSelect?: (name: string) => void;
+  isDragging?: () => boolean;
+  svgRef?: React.Ref<SVGSVGElement>;
+  zoom?: number;
+}) {
+  const { items, pos, extras, edges, width, height } = layout;
+  const center = (p: Box) => ({ x: p.x + NODE_W / 2, y: p.y + NODE_H / 2 });
+  const ranEdge = (e: Edge) => !run || (run.ran.has(e.from) && run.ran.has(e.to));
+
+  const node = (key: string, label: string, icon: string, p: Box, it?: WfItem) => {
+    const r = it && run?.ran.get(it.name);
+    const skipped = !!(run && it && !r);
+    const failedHere = !!(run && it && run.failed && run.current === it.name);
+    const lines = wrap(label);
+    const time = r?.ms !== undefined ? `${formatDuration(r.ms)}${r.count && r.count > 1 ? ` ×${r.count}` : ""}` : undefined;
+    const isSel = it && selected === it.name;
+    return (
+      <g
+        key={key}
+        transform={`translate(${p.x},${p.y})`}
+        className={it ? "wf-node" : undefined}
+        opacity={skipped ? 0.35 : 1}
+        onClick={it && onSelect ? () => !isDragging?.() && onSelect(it.name) : undefined}
+        onKeyDown={it && onSelect ? (e) => (e.key === "Enter" || e.key === " ") && onSelect(it.name) : undefined}
+        tabIndex={it && onSelect ? 0 : undefined}
+        role={it && onSelect ? "button" : undefined}
+        aria-label={it ? `${label} (${it.type}${time ? `, ${time}` : ""})` : undefined}
+      >
+        {it && <title>{`${label} — ${it.type}${it.scriptModule ? ` · ${it.scriptModule}` : ""} (${it.name})${time ? ` — ${time}` : ""}`}</title>}
+        {(r || failedHere) && <rect x={4} y={-4} width={NODE_W - 8} height={NODE_H} rx={8} fill={failedHere ? C.failFill : C.ranFill} stroke={failedHere ? C.red : C.ran} strokeWidth={1.2} />}
+        {isSel && <rect data-ui x={2} y={-6} width={NODE_W - 4} height={NODE_H + 4} rx={9} fill={C.select} stroke={C.blue} strokeWidth={1.5} />}
+        {it && onSelect && <rect data-ui className="wf-hit" x={4} y={-4} width={NODE_W - 8} height={NODE_H} rx={8} fill="transparent" />}
+        <image href={iconUri(icon)} x={(NODE_W - ICON) / 2} y={0} width={ICON} height={ICON} />
+        <text x={NODE_W / 2} y={ICON + 17} textAnchor="middle" fontSize={12} fontWeight={700} fill={C.text} fontFamily="'Clarity City', 'Metropolis', Arial, sans-serif">
+          {lines.map((l, i) => (
+            <tspan key={i} x={NODE_W / 2} dy={i === 0 ? 0 : 14}>{l}</tspan>
+          ))}
+        </text>
+        {time && (
+          <text x={NODE_W / 2} y={ICON + 17 + lines.length * 14 + 1} textAnchor="middle" fontSize={11} fontWeight={700} fill={C.time} fontFamily="'Clarity City', 'Metropolis', Arial, sans-serif">
+            {time}
+          </text>
+        )}
+      </g>
+    );
+  };
+
+
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      ref={svgRef}
+      width={width * zoom}
+      height={height * zoom}
+      viewBox={`0 0 ${width} ${height}`}
+      role="img"
+      aria-label={`Schema of workflow ${wf.name}`}
+      style={{ display: "block" }}
+    >
+      <defs>
+        <pattern id="wf-dots" width="18" height="18" patternUnits="userSpaceOnUse">
+          <circle cx="9" cy="9" r="1" fill={C.dot} />
+        </pattern>
+        {([["blue", C.blue], ["green", C.green], ["red", C.red]] as const).map(([k, c]) => (
+          <marker key={k} id={`wf-arr-${k}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="6" orient="auto">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill={c} />
+          </marker>
+        ))}
+      </defs>
+      <rect width={width} height={height} fill={C.canvas} />
+      <rect width={width} height={height} fill="url(#wf-dots)" />
+
+      {edges.map((e, i) => {
+        const a = center(pos.get(e.from)!);
+        const b = center(pos.get(e.to)!);
+        const lit = run && ranEdge(e);
+        return (
+          <path
+            key={i}
+            d={arrow(a.x, a.y, b.x, b.y)}
+            stroke={e.color}
+            strokeWidth={lit ? e.width + 1.2 : e.width}
+            strokeDasharray={e.dash}
+            fill="none"
+            opacity={run && !lit ? 0.3 : 1}
+            markerEnd={`url(#wf-arr-${e.marker})`}
+          />
+        );
+      })}
+      {extras.map((x) => {
+        const to = x.target ? pos.get(x.target) : wf.rootName ? pos.get(wf.rootName) : undefined;
+        if (!to) return null;
+        const a = center(x.pos);
+        const b = center(to);
+        return <path key={`a${x.key}`} d={arrow(a.x, a.y, b.x, b.y)} stroke={C.blue} strokeWidth={run && !x.target ? 2.7 : 1.5} fill="none" markerEnd="url(#wf-arr-blue)" />;
+      })}
+
+      {extras.map((x) => node(x.key, x.label, x.icon, x.pos))}
+      {items.map((it) => node(it.name, labelFor(it), iconFor(it), pos.get(it.name)!, it))}
+    </svg>
+  );
 }
 
 export function SchemaDiagram({
@@ -210,8 +338,7 @@ export function SchemaDiagram({
   }, [layout]);
 
   if (!layout) return <p className="muted">No schema layout information in this workflow.</p>;
-  const { items, pos, extras, edges, width, height } = layout;
-  const center = (p: Box) => ({ x: p.x + NODE_W / 2, y: p.y + NODE_H / 2 });
+  const { width, height } = layout;
 
   const setZ = (z: number) => setZoom(Math.min(2.5, Math.max(0.25, Math.round(z * 100) / 100)));
   const fit = () => setZ((viewRef.current?.clientWidth ?? width) / width);
@@ -251,46 +378,6 @@ export function SchemaDiagram({
     img.src = url;
   };
 
-  const ranEdge = (e: Edge) => !run || (run.ran.has(e.from) && run.ran.has(e.to));
-
-  const node = (key: string, label: string, icon: string, p: Box, it?: WfItem) => {
-    const r = it && run?.ran.get(it.name);
-    const skipped = !!(run && it && !r);
-    const failedHere = !!(run && it && run.failed && run.current === it.name);
-    const lines = wrap(label);
-    const time = r?.ms !== undefined ? `${formatDuration(r.ms)}${r.count && r.count > 1 ? ` ×${r.count}` : ""}` : undefined;
-    const isSel = it && selected === it.name;
-    return (
-      <g
-        key={key}
-        transform={`translate(${p.x},${p.y})`}
-        className={it ? "wf-node" : undefined}
-        opacity={skipped ? 0.35 : 1}
-        onClick={it ? () => !drag.current?.moved && onSelect(it.name) : undefined}
-        onKeyDown={it ? (e) => (e.key === "Enter" || e.key === " ") && onSelect(it.name) : undefined}
-        tabIndex={it ? 0 : undefined}
-        role={it ? "button" : undefined}
-        aria-label={it ? `${label} (${it.type}${time ? `, ${time}` : ""})` : undefined}
-      >
-        {it && <title>{`${label} — ${it.type}${it.scriptModule ? ` · ${it.scriptModule}` : ""} (${it.name})${time ? ` — ${time}` : ""}`}</title>}
-        {(r || failedHere) && <rect x={4} y={-4} width={NODE_W - 8} height={NODE_H} rx={8} fill={failedHere ? C.failFill : C.ranFill} stroke={failedHere ? C.red : C.ran} strokeWidth={1.2} />}
-        {isSel && <rect data-ui x={2} y={-6} width={NODE_W - 4} height={NODE_H + 4} rx={9} fill={C.select} stroke={C.blue} strokeWidth={1.5} />}
-        {it && <rect data-ui className="wf-hit" x={4} y={-4} width={NODE_W - 8} height={NODE_H} rx={8} fill="transparent" />}
-        <image href={iconUri(icon)} x={(NODE_W - ICON) / 2} y={0} width={ICON} height={ICON} />
-        <text x={NODE_W / 2} y={ICON + 17} textAnchor="middle" fontSize={12} fontWeight={700} fill={C.text} fontFamily="'Clarity City', 'Metropolis', Arial, sans-serif">
-          {lines.map((l, i) => (
-            <tspan key={i} x={NODE_W / 2} dy={i === 0 ? 0 : 14}>{l}</tspan>
-          ))}
-        </text>
-        {time && (
-          <text x={NODE_W / 2} y={ICON + 17 + lines.length * 14 + 1} textAnchor="middle" fontSize={11} fontWeight={700} fill={C.time} fontFamily="'Clarity City', 'Metropolis', Arial, sans-serif">
-            {time}
-          </text>
-        )}
-      </g>
-    );
-  };
-
   return (
     <div className="wf-schema">
       <div className="wf-toolbar">
@@ -324,56 +411,16 @@ export function SchemaDiagram({
         }}
         onPointerUp={() => setTimeout(() => (drag.current = null), 0)}
       >
-        <svg
-          ref={svgRef}
-          width={width * zoom}
-          height={height * zoom}
-          viewBox={`0 0 ${width} ${height}`}
-          role="img"
-          aria-label={`Schema of workflow ${wf.name}`}
-          style={{ display: "block" }}
-        >
-          <defs>
-            <pattern id="wf-dots" width="18" height="18" patternUnits="userSpaceOnUse">
-              <circle cx="9" cy="9" r="1" fill={C.dot} />
-            </pattern>
-            {([["blue", C.blue], ["green", C.green], ["red", C.red]] as const).map(([k, c]) => (
-              <marker key={k} id={`wf-arr-${k}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="6" orient="auto">
-                <path d="M 0 0 L 10 5 L 0 10 z" fill={c} />
-              </marker>
-            ))}
-          </defs>
-          <rect width={width} height={height} fill={C.canvas} />
-          <rect width={width} height={height} fill="url(#wf-dots)" />
-
-          {edges.map((e, i) => {
-            const a = center(pos.get(e.from)!);
-            const b = center(pos.get(e.to)!);
-            const lit = run && ranEdge(e);
-            return (
-              <path
-                key={i}
-                d={arrow(a.x, a.y, b.x, b.y)}
-                stroke={e.color}
-                strokeWidth={lit ? e.width + 1.2 : e.width}
-                strokeDasharray={e.dash}
-                fill="none"
-                opacity={run && !lit ? 0.3 : 1}
-                markerEnd={`url(#wf-arr-${e.marker})`}
-              />
-            );
-          })}
-          {extras.map((x) => {
-            const to = x.target ? pos.get(x.target) : wf.rootName ? pos.get(wf.rootName) : undefined;
-            if (!to) return null;
-            const a = center(x.pos);
-            const b = center(to);
-            return <path key={`a${x.key}`} d={arrow(a.x, a.y, b.x, b.y)} stroke={C.blue} strokeWidth={run && !x.target ? 2.7 : 1.5} fill="none" markerEnd="url(#wf-arr-blue)" />;
-          })}
-
-          {extras.map((x) => node(x.key, x.label, x.icon, x.pos))}
-          {items.map((it) => node(it.name, labelFor(it), iconFor(it), pos.get(it.name)!, it))}
-        </svg>
+        <SchemaSvg
+          wf={wf}
+          layout={layout}
+          run={run}
+          selected={selected}
+          onSelect={onSelect}
+          isDragging={() => !!drag.current?.moved}
+          svgRef={svgRef}
+          zoom={zoom}
+        />
       </div>
       <div className="legend">
         {run && <span><i className="lg lg-wf-ran" /> ran in this run (time shown)</span>}

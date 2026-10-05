@@ -24,6 +24,14 @@ function writeHash(v: View) {
 
 type Theme = "system" | "light" | "dark";
 
+export interface ExportState {
+  running: boolean;
+  done: number;
+  total: number;
+  label: string;
+  error?: string;
+}
+
 /** The front page's own <title>, restored when going back home. */
 const HOME_TITLE = typeof document !== "undefined" ? document.title : "vRO Peekage";
 
@@ -62,10 +70,31 @@ export default function App() {
     mainRef.current?.scrollTo({ top: 0 });
   }, []);
 
+  /** "Export everything": build the zip in the browser and download it. */
+  const [exporting, setExporting] = useState<ExportState | null>(null);
+  const runExport = useCallback(async () => {
+    if (!pkg || exporting?.running) return;
+    setExporting({ running: true, done: 0, total: 1, label: "Starting" });
+    try {
+      const { exportEverything } = await import("./lib/exporter");
+      const { blob, fileName } = await exportEverything(pkg, (done, total, label) => setExporting({ running: true, done, total, label }));
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      setExporting({ running: false, done: 1, total: 1, label: `Saved ${fileName}` });
+    } catch (e) {
+      setExporting({ running: false, done: 0, total: 1, label: "", error: `Export failed: ${(e as Error).message}` });
+    }
+  }, [pkg, exporting]);
+
   /** Close the open package and return to the front page. */
   const goHome = useCallback(() => {
     setPkg(null);
     setError(null);
+    setExporting(null);
     setNavOpen(false);
     setView({ kind: "overview" });
     document.title = HOME_TITLE;
@@ -203,6 +232,18 @@ export default function App() {
             </button>
             <button className={`btn-ghost ${view.kind === "overview" ? "on" : ""}`} onClick={() => go({ kind: "overview" })}>Overview</button>
             <button className={`btn-ghost ${view.kind === "search" ? "on" : ""}`} onClick={() => go({ kind: "search" })}>Search</button>
+            <button
+              className="btn-ghost export-btn"
+              onClick={runExport}
+              disabled={!!exporting?.running}
+              aria-label="Export everything as a zip"
+              title="Export everything: report, diagrams, scripts and files as one zip"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M12 3v12M7 10l5 5 5-5M4 17v3h16v-3" />
+              </svg>
+              <span>{exporting?.running ? `${Math.round((exporting.done / exporting.total) * 100)}%` : "Export"}</span>
+            </button>
             <button className="btn" onClick={() => inputRef.current?.click()}>Open…</button>
           </>
         )}
@@ -227,7 +268,7 @@ export default function App() {
           <main className="main" ref={mainRef}>
             {busy && <div className="callout">Reading package…</div>}
             {error && <div className="callout warn">{error}</div>}
-            {view.kind === "overview" && <Overview pkg={pkg} onNav={(id) => go({ kind: "element", id })} />}
+            {view.kind === "overview" && <Overview pkg={pkg} onNav={(id) => go({ kind: "element", id })} onExport={runExport} exporting={exporting} />}
             {view.kind === "search" && <SearchView pkg={pkg} onOpen={(id, term) => go({ kind: "element", id, term })} />}
             {view.kind === "element" && el && <ElementView key={el.id + (view.term ?? "")} el={el} pkg={pkg} onNav={(id) => go({ kind: "element", id })} term={view.term} />}
             {view.kind === "element" && !el && <p className="muted">Element not found in this package.</p>}

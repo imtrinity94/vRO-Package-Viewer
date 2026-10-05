@@ -24,6 +24,25 @@ The package is parsed entirely client-side (JSZip + DOMParser). Nothing is uploa
 - **Search**: full-text / regex search across every script, config value and (optionally) raw XML.
 - **Raw**: every file stored for an element, decoded (the package stores most XML as UTF-16BE), with per-file download.
 
+## Export everything
+
+The **Export** button (top bar) or **Download .zip** (Overview) builds one zip per package in the browser:
+
+```
+report.html            self-contained report: contents, inventory, every element, diagrams, scripts.
+                       Opens offline; "Save as PDF / Print" gives a paginated PDF.
+inventory.csv / .md    element inventory
+diagrams/              every workflow schema (and recorded run paths) as SVG + PNG
+scripts/               scriptable tasks (scripts/workflows/<folder>/<workflow>/NN <step>.js|py|ps1)
+                       and actions (scripts/actions/<module>/<name>.js|py|ps1), bindings/params in a header
+workflows-xml/         raw workflow XML (opens in wdt4vro)
+configurations/        configuration elements as JSON
+resources/             resource element files as stored in the package
+environments/, runs/   environment definitions and recorded runs as JSON
+```
+
+SecureString values are never exported. Polyglot environment bundles are left out (dependencies are listed).
+
 ## Package format notes
 
 A `.package` is a zip:

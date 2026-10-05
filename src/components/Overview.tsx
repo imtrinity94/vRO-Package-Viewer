@@ -3,11 +3,8 @@ import type { PackageInfo, PkgElement } from "../lib/types";
 import { formatBytes, formatDuration, kindLabel } from "../lib/parser";
 import { KindIcon } from "./Icons";
 import { StateChip } from "./RunView";
-
-function csvCell(v: unknown) {
-  const s = v === undefined || v === null ? "" : String(v);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
+import type { ExportState } from "../App";
+import { elementSummary as summary, inventoryCsv, inventoryMarkdown } from "../lib/inventory";
 
 function dl(name: string, text: string, mime: string) {
   const url = URL.createObjectURL(new Blob([text], { type: mime }));
@@ -18,21 +15,19 @@ function dl(name: string, text: string, mime: string) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-function summary(e: PkgElement): string {
-  switch (e.kind) {
-    case "workflow": return `${e.inputs.length} in · ${e.outputs.length} out · ${e.items.filter((i) => i.type !== "end").length} steps`;
-    case "action": return `(${e.params.map((p) => p.type).join(", ")}) → ${e.resultType ?? "void"}${e.runtime ? ` · ${e.runtime}` : ""}`;
-    case "config": return `${e.attributes.length} attributes`;
-    case "resource": return `${e.mimeType ?? "?"} · ${formatBytes(e.size)}`;
-    case "environment": return `${e.runtime ?? ""} · ${Object.keys(e.dependencies).length} deps`;
-    case "run": return `${e.globalState ?? "?"} · ${e.start && e.end ? formatDuration(e.end.getTime() - e.start.getTime()) : "–"}`;
-    default: return e.type;
-  }
-}
-
 type SortKey = "kind" | "name" | "path" | "version";
 
-export function Overview({ pkg, onNav }: { pkg: PackageInfo; onNav: (id: string) => void }) {
+export function Overview({
+  pkg,
+  onNav,
+  onExport,
+  exporting,
+}: {
+  pkg: PackageInfo;
+  onNav: (id: string) => void;
+  onExport: () => void;
+  exporting: ExportState | null;
+}) {
   const [sort, setSort] = useState<{ k: SortKey; dir: 1 | -1 }>({ k: "kind", dir: 1 });
   const m = pkg.meta;
   const runs = pkg.elements.filter((e) => e.kind === "run");
@@ -51,49 +46,8 @@ export function Overview({ pkg, onNav }: { pkg: PackageInfo; onNav: (id: string)
     return [...pkg.elements].sort((a, b) => (val(a, sort.k) < val(b, sort.k) ? -sort.dir : val(a, sort.k) > val(b, sort.k) ? sort.dir : 0));
   }, [pkg, sort]);
 
-  const exportCsv = () => {
-    const head = ["Type", "Name", "Folder/Module", "Version", "ID", "Summary", "Description", "Uses", "Used by"];
-    const lines = [head.join(",")].concat(
-      pkg.elements.map((e) => {
-        const uses = [...(pkg.refs.get(e.id.toLowerCase()) ?? [])].map((i) => pkg.byId.get(i)?.name).join("; ");
-        const usedBy = [...(pkg.usedBy.get(e.id.toLowerCase()) ?? [])].map((i) => pkg.byId.get(i)?.name).join("; ");
-        return [kindLabel(e.kind, e.type), e.name, e.path.join("/"), e.version, e.id, summary(e), e.description, uses, usedBy].map(csvCell).join(",");
-      }),
-    );
-    dl(`${m["pkg-name"] || "package"}-inventory.csv`, "﻿" + lines.join("\r\n"), "text/csv");
-  };
-  const exportMd = () => {
-    const out: string[] = [`# ${m["pkg-name"] || pkg.fileName}`, "", `- vRO version: ${m["vso-version"] ?? "?"}`, `- Package ID: ${m["pkg-id"] ?? "?"}`, ""];
-    const groups: [PkgElement["kind"], string][] = [["run", "Workflow runs"], ["workflow", "Workflows"], ["action", "Actions"], ["config", "Configuration Elements"], ["resource", "Resource Elements"], ["environment", "Environments"], ["generic", "Other"]];
-    for (const [k, label] of groups) {
-      const els = pkg.elements.filter((e) => e.kind === k);
-      if (!els.length) continue;
-      out.push(`## ${label} (${els.length})`, "", "| Name | Folder / Module | Version | Summary | Description |", "|---|---|---|---|---|");
-      for (const e of els) out.push(`| ${e.name} | ${e.path.join("/")} | ${e.version ?? ""} | ${summary(e)} | ${(e.description ?? "").replace(/\s*\n\s*/g, " ").replace(/\|/g, "\\|")} |`);
-      out.push("");
-      if (k === "workflow") {
-        for (const e of els) {
-          if (e.kind !== "workflow") continue;
-          out.push(`### ${e.name}`, "");
-          if (e.description) out.push(e.description, "");
-          if (e.inputs.length) {
-            out.push("| Input | Type | Description |", "|---|---|---|");
-            for (const p of e.inputs) out.push(`| ${p.name} | ${p.type} | ${(p.description ?? "").replace(/\s*\n\s*/g, " ").replace(/\|/g, "\\|")} |`);
-            out.push("");
-          }
-        }
-      }
-      if (k === "config") {
-        for (const e of els) {
-          if (e.kind !== "config") continue;
-          out.push(`### ${e.name}`, "", "| Attribute | Type | Description |", "|---|---|---|");
-          for (const a of e.attributes) out.push(`| ${a.name} | ${a.type} | ${(a.description ?? "").replace(/\s*\n\s*/g, " ").replace(/\|/g, "\\|")} |`);
-          out.push("");
-        }
-      }
-    }
-    dl(`${m["pkg-name"] || "package"}.md`, out.join("\n"), "text/markdown");
-  };
+  const exportCsv = () => dl(`${m["pkg-name"] || "package"}-inventory.csv`, inventoryCsv(pkg), "text/csv");
+  const exportMd = () => dl(`${m["pkg-name"] || "package"}.md`, inventoryMarkdown(pkg), "text/markdown");
 
   const Th = ({ k, children }: { k: SortKey; children: React.ReactNode }) => (
     <th>
@@ -166,6 +120,27 @@ export function Overview({ pkg, onNav }: { pkg: PackageInfo; onNav: (id: string)
           <div className="tile-sub">{Object.entries(loc).map(([l, n]) => `${l} ${n.toLocaleString()}`).join(" · ")}</div>
         </div>
       </div>
+
+      <section className="card export-card">
+        <div className="export-copy">
+          <h3>Export everything</h3>
+          <p className="small muted">
+            One zip with a full report you can open offline or save as PDF, every workflow diagram as PNG and SVG, all scripts as
+            .js / .py / .ps1 files, configuration elements, resource files and the inventory. SecureString values are never included.
+          </p>
+          {exporting?.running && (
+            <div className="export-progress" role="status">
+              <progress max={exporting.total} value={exporting.done} />
+              <span className="small muted">{exporting.label}…</span>
+            </div>
+          )}
+          {!exporting?.running && exporting?.label && !exporting.error && <p className="small export-ok" role="status">{exporting.label}</p>}
+          {exporting?.error && <p className="small export-err" role="alert">{exporting.error}</p>}
+        </div>
+        <button className="btn primary" onClick={onExport} disabled={!!exporting?.running}>
+          {exporting?.running ? "Exporting…" : "Download .zip"}
+        </button>
+      </section>
 
       <section className="card">
         <h3>Package metadata</h3>
