@@ -7,6 +7,7 @@ import { ElementView } from "./components/ElementView";
 import { SearchView } from "./components/SearchView";
 import { Landing } from "./components/Landing";
 import { BackToTop } from "./components/BackToTop";
+import { APP_VERSION } from "./version";
 
 type View = { kind: "overview" } | { kind: "search" } | { kind: "element"; id: string; term?: string };
 
@@ -219,6 +220,7 @@ export default function App() {
         )}
         <button className="brand" onClick={() => pkg && go({ kind: "overview" })}>
           <Logo size={30} /> <span className="brand-name"><b>vRO</b> Peekage</span>
+          <span className="brand-version" title={`vRO Peekage version ${APP_VERSION}`}>v{APP_VERSION}</span>
         </button>
         {pkg && (
           <>

@@ -446,6 +446,7 @@ table.steps tbody tr:hover td, table.steps tbody tr.on td { background: var(--pa
 
 /* ---------- brand ---------- */
 .brand-name b { font-weight: 800; }
+.brand-version { font-size: 12px; font-weight: 400; letter-spacing: 0; opacity: 0.6; align-self: flex-end; margin: 0 0 4px -2px; font-variant-numeric: tabular-nums; }
 
 /* ---------- landing page ---------- */
 .lp { flex: 1; overflow: auto; }
