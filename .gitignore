@@ -4,3 +4,4 @@ dist-single
 *.package
 .vercel
 .DS_Store
+.claude-*

@@ -108,7 +108,6 @@ function stepScriptFile(wf: WorkflowElement, it: WfItem, lang: string): string {
     `Step:     ${it.displayName || it.name}  [${it.name}, ${it.type}${it.runtime ? `, ${it.runtime}` : ""}]`,
     ...it.inBindings.map((b) => `in:       ${b.name} (${b.type}) <- ${b.exportName ?? "not bound"}`),
     ...it.outBindings.map((b) => `out:      ${b.name} (${b.type}) -> ${b.exportName ?? "not bound"}`),
-    "Exported by vRO Peekage",
   ];
   return comment(lang, lines) + it.script!.replace(/^\n+/, "");
 }
@@ -121,7 +120,6 @@ function actionFile(a: ActionElement, lang: string): string {
       ...(a.description ? a.description.split("\n").map((l) => ` * ${l}`) : []),
       ...a.params.map((p) => ` * @param {${p.type}} ${p.name}${p.description ? ` - ${p.description.replace(/\s*\n\s*/g, " ")}` : ""}`),
       ` * @returns {${a.resultType ?? "void"}}`,
-      " * Exported by vRO Peekage",
       " */",
     ];
     return doc.join("\n") + "\n" + a.script.replace(/^\n+/, "");
@@ -130,12 +128,11 @@ function actionFile(a: ActionElement, lang: string): string {
     `Action: ${a.module}/${a.name}${a.version ? `  v${a.version}` : ""}  (${a.runtime ?? ""})`,
     ...a.params.map((p) => `param:  ${p.name} (${p.type})`),
     `returns: ${a.resultType ?? "void"}`,
-    "Exported by vRO Peekage",
   ];
   return comment(lang, lines) + a.script.replace(/^\n+/, "");
 }
 
-const README = (pkgName: string, when: Date) => `vRO Peekage export: ${pkgName}
+const README = (pkgName: string, when: Date) => `Package export: ${pkgName}
 Generated ${when.toISOString()}
 
 report.html           Full report. Open in any browser; use "Save as PDF / Print" for a PDF.
@@ -267,7 +264,7 @@ export async function exportEverything(pkg: PackageInfo, progress: Progress = ()
 
   tick("Compressing");
   const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
-  return { blob, fileName: `${safeName(pkgName)} - vRO Peekage export.zip` };
+  return { blob, fileName: `${safeName(pkgName)} - export.zip` };
 }
 
 /* ------------------------------ report document ------------------------------ */
@@ -280,8 +277,7 @@ function reportHtml(title: string, body: string): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="generator" content="vRO Peekage">
-<title>${esc(title)} · vRO Peekage report</title>
+<title>${esc(title)} · Package report</title>
 <style>${FONT_CSS}${REPORT_CSS}</style>
 </head>
 <body>
@@ -301,6 +297,7 @@ a{color:var(--blue)}
 .mono,code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
 .muted{color:var(--muted)}.strong{font-weight:700}.type{color:var(--purple)}.wrap{white-space:pre-wrap;word-break:break-word}
 .toolbar{position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;margin:0 -32px;padding:10px 32px;background:var(--navy);color:#fff}
+.toolbar span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:16px;font-weight:600}
 .toolbar button{font:inherit;color:#fff;background:transparent;border:1px solid rgba(255,255,255,.35);border-radius:8px;padding:6px 14px;cursor:pointer}
 .toolbar button:hover{background:rgba(255,255,255,.1)}
 .cover{padding:40px 0 16px;border-bottom:3px solid var(--navy)}
