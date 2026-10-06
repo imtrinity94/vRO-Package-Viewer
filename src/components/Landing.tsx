@@ -171,7 +171,7 @@ export function Landing({ onPick, busy, error, dragging, scrollRef }: { onPick: 
             </figcaption>
           </figure>
           <figure className="lp-panel lp-panel-code">
-            <CodeBlock code={SNIPPET} lang="javascript" title="Run guest script" highlightTerm="getModule" maxHeight={170} />
+            <CodeBlock code={SNIPPET} lang="javascript" title="Run guest script" highlightTerm="getModule" maxHeight={170} editable={false} />
             <figcaption>
               <strong>Every script, searchable.</strong> JavaScript, Python and PowerShell, with search across the whole package.
             </figcaption>

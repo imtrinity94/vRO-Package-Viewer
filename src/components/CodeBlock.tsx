@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import hljs from "highlight.js/lib/core";
 import javascript from "highlight.js/lib/languages/javascript";
 import python from "highlight.js/lib/languages/python";
@@ -32,49 +32,154 @@ export function highlightCode(code: string, lang: string): string {
   return hljs.highlight(code, { language: lang, ignoreIllegals: true }).value;
 }
 
+/** Above this size, editing falls back to plain text so typing stays smooth. */
+const MAX_HL_EDIT = 120_000;
+
+function highlightHtml(code: string, lang: string, limit: number) {
+  if (code.length > limit || !hljs.getLanguage(lang)) return escapeHtml(code);
+  return hljs.highlight(code, { language: lang, ignoreIllegals: true }).value;
+}
+
+/** Insert text at the selection, keeping the browser's undo history where possible. */
+function insertText(ta: HTMLTextAreaElement, text: string) {
+  ta.focus();
+  if (!document.execCommand?.("insertText", false, text)) {
+    ta.setRangeText(text, ta.selectionStart, ta.selectionEnd, "end");
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+}
+
+function handleEditorKeys(e: KeyboardEvent<HTMLTextAreaElement>, indent: string) {
+  const ta = e.currentTarget;
+  const { value, selectionStart: start, selectionEnd: end } = ta;
+
+  if (e.key === "Escape") {
+    ta.blur();
+    return;
+  }
+
+  if (e.key === "Tab") {
+    e.preventDefault();
+    const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+    const multiLine = value.slice(start, end).includes("\n");
+    if (!multiLine && !e.shiftKey) {
+      insertText(ta, indent);
+      return;
+    }
+    // Indent / outdent every line touched by the selection.
+    const blockEnd = end > start && value[end - 1] === "\n" ? end - 1 : end;
+    const lineEnd = value.indexOf("\n", blockEnd);
+    const stop = lineEnd === -1 ? value.length : lineEnd;
+    const block = value.slice(lineStart, stop);
+    const changed = block
+      .split("\n")
+      .map((l) => {
+        if (!e.shiftKey) return indent + l;
+        if (l.startsWith("\t")) return l.slice(1);
+        return l.replace(/^ {1,4}/, "");
+      })
+      .join("\n");
+    ta.setSelectionRange(lineStart, stop);
+    insertText(ta, changed);
+    ta.setSelectionRange(lineStart, lineStart + changed.length);
+    return;
+  }
+
+  if (e.key === "Enter" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    // Keep the current line's indentation; indent one more level after an opening bracket.
+    e.preventDefault();
+    const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+    const lead = /^[ \t]*/.exec(value.slice(lineStart, start))![0];
+    const before = value.slice(lineStart, start).trimEnd();
+    const extra = /[{([]$/.test(before) ? indent : "";
+    insertText(ta, "\n" + lead + extra);
+  }
+}
+
 export function CodeBlock({
   code,
   lang = "javascript",
   title,
   highlightTerm,
   maxHeight,
+  editable = true,
 }: {
   code: string;
   lang?: string;
   title?: string;
   highlightTerm?: string;
   maxHeight?: number;
+  /** Show the Edit button (scratch editing: changes are never saved anywhere). */
+  editable?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
   const [wrap, setWrap] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<string | null>(null);
+  const [source, setSource] = useState(code);
+  const taRef = useRef<HTMLTextAreaElement>(null);
+
+  // A different script was opened in this viewer: drop any scratch edits.
+  if (source !== code) {
+    setSource(code);
+    setDraft(null);
+    setEditing(false);
+  }
+
   const trimmed = code.replace(/^\n+/, "").replace(/\s+$/, "");
+  const value = draft ?? trimmed;
+  const modified = draft !== null && draft !== trimmed;
+  const indent = useMemo(() => (/^\t/m.test(trimmed) ? "\t" : "    "), [trimmed]);
+
   const html = useMemo(() => {
-    let out: string;
-    if (trimmed.length > MAX_HL || !hljs.getLanguage(lang)) out = escapeHtml(trimmed);
-    else out = hljs.highlight(trimmed, { language: lang, ignoreIllegals: true }).value;
+    if (editing || modified) {
+      // A trailing newline needs a placeholder so the highlighted copy stays as tall as the textarea.
+      return highlightHtml(value, lang, MAX_HL_EDIT) + (value.endsWith("\n") || value === "" ? " " : "");
+    }
+    let out = highlightHtml(trimmed, lang, MAX_HL);
     if (highlightTerm && highlightTerm.length > 1) {
       // mark matches only inside text nodes (not inside tags)
       const re = new RegExp(`(${highlightTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi");
       out = out.replace(/(^|>)([^<]+)/g, (_m, a: string, b: string) => a + b.replace(re, "<mark>$1</mark>"));
     }
     return out;
-  }, [trimmed, lang, highlightTerm]);
-  const lines = trimmed.split("\n").length;
+  }, [editing, modified, value, trimmed, lang, highlightTerm]);
+  const lines = value.split("\n").length;
+
+  useEffect(() => {
+    if (editing) taRef.current?.focus({ preventScroll: true });
+  }, [editing]);
 
   return (
-    <div className="code">
+    <div className={`code${editing ? " editing" : ""}`}>
       <div className="code-head">
         <span className="code-title">{title}</span>
+        {modified && <span className="code-edited" title="Scratch edits: nothing is saved, Reset or opening another item discards them">edited</span>}
         <span className="code-meta">
           {lang} · {lines} lines
         </span>
         <button className="btn-ghost sm" onClick={() => setWrap((w) => !w)}>
           {wrap ? "No wrap" : "Wrap"}
         </button>
+        {editable && modified && (
+          <button className="btn-ghost sm" onClick={() => setDraft(null)} title="Discard your edits and restore the original script">
+            Reset
+          </button>
+        )}
+        {editable && (
+          <button
+            className={`btn-ghost sm${editing ? " on" : ""}`}
+            onClick={() => setEditing((v) => !v)}
+            aria-pressed={editing}
+            title={editing ? "Stop editing (your changes stay until Reset)" : "Edit this script for quick prototyping. Changes are never saved."}
+          >
+            {editing ? "Done" : "Edit"}
+          </button>
+        )}
         <button
           className="btn-ghost sm"
           onClick={() => {
-            navigator.clipboard?.writeText(trimmed).then(() => {
+            navigator.clipboard?.writeText(value).then(() => {
               setCopied(true);
               setTimeout(() => setCopied(false), 1200);
             });
@@ -89,9 +194,26 @@ export function CodeBlock({
             {Array.from({ length: lines }, (_, i) => i + 1).join("\n")}
           </pre>
         )}
-        <pre className={`hljs src ${wrap ? "wrap" : ""}`}>
-          <code dangerouslySetInnerHTML={{ __html: html }} />
-        </pre>
+        <div className={`src-wrap${wrap ? " wrap" : ""}`}>
+          <pre className={`hljs src ${wrap ? "wrap" : ""}`} aria-hidden={editing || undefined}>
+            <code dangerouslySetInnerHTML={{ __html: html }} />
+          </pre>
+          {editing && (
+            <textarea
+              ref={taRef}
+              className={`src-edit${wrap ? " wrap" : ""}`}
+              value={value}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => handleEditorKeys(e, indent)}
+              wrap={wrap ? "soft" : "off"}
+              spellCheck={false}
+              autoCapitalize="off"
+              autoComplete="off"
+              autoCorrect="off"
+              aria-label={`Edit ${title || "script"}`}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

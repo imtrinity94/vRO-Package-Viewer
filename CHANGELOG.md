@@ -12,6 +12,17 @@ The version lives in `package.json` and is shown in the app's top bar.
 
 ---
 
+## 2026.8.0 (2026-10-06)
+
+### Added
+- An **Edit** button on every script and code viewer for quick prototyping. It is scratch editing only: nothing is saved, and the package and the export are never changed.
+  - Syntax colours update live as you type, and the line numbers follow.
+  - **Tab** and **Shift+Tab** indent and outdent, including across several selected lines.
+  - **Enter** keeps the current indentation, and adds one level after `{`, `(` or `[`.
+  - **Esc** leaves the editor.
+  - An **edited** badge appears once the script changes. **Reset** restores the original. **Copy** copies your edited version.
+  - Edits are discarded when you open another item.
+
 ## 2026.7.0 (2026-10-06)
 
 ### Added

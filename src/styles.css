@@ -325,8 +325,23 @@ dl.kv dd { margin: 0; word-break: break-all; }
 .code-body { display: flex; align-items: flex-start; overflow: auto; max-height: 800px; }
 .code-body pre { margin: 0; padding: 10px 12px; font-family: var(--mono); font-size: 12.5px; line-height: 1.55; }
 .gutter { color: var(--muted); text-align: right; user-select: none; border-right: 1px solid var(--border); position: sticky; left: 0; z-index: 1; flex-shrink: 0; background: var(--panel-2); box-shadow: 4px 0 6px -4px rgb(0 0 0 / 0.15); }
-.src { flex: 1; tab-size: 4; }
+.src { tab-size: 4; }
 .src.wrap { white-space: pre-wrap; word-break: break-word; }
+.src-wrap { position: relative; flex: 1 0 auto; }
+.src-wrap.wrap { flex: 1 1 0; min-width: 0; }
+.src-edit {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  margin: 0; padding: 10px 12px; border: 0; outline: none; resize: none; overflow: hidden;
+  font-family: var(--mono); font-size: 12.5px; line-height: 1.55; letter-spacing: normal; tab-size: 4;
+  white-space: pre; overflow-wrap: normal;
+  background: transparent; color: transparent; caret-color: var(--text);
+}
+.src-edit.wrap { white-space: pre-wrap; word-break: break-word; }
+.src-edit::selection { background: color-mix(in srgb, var(--accent) 28%, transparent); color: transparent; }
+.code.editing { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.code.editing .code-body { cursor: text; }
+.code-edited { font-size: 11px; font-weight: 600; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 1px 8px; }
+.btn-ghost.sm.on { color: var(--accent); background: var(--accent-soft); }
 .hljs-keyword, .hljs-built_in, .hljs-literal, .hljs-selector-tag { color: var(--hl-kw); }
 .hljs-string, .hljs-regexp, .hljs-template-string { color: var(--hl-str); }
 .hljs-number { color: var(--hl-num); }
