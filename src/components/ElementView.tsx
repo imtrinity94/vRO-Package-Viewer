@@ -11,8 +11,9 @@ import type {
   WfItem,
   WorkflowElement,
 } from "../lib/types";
-import { formatBytes, isTextMime, kindLabel, langForMime, prettyValue, decodeText } from "../lib/parser";
+import { formatBytes, isTextMime, kindLabel, langForMime, decodeText } from "../lib/parser";
 import { CodeBlock } from "./CodeBlock";
+import { TypeLabel, ValueView } from "./ValueView";
 import { SchemaDiagram } from "./SchemaDiagram";
 import { KindIcon } from "./Icons";
 import { RunView } from "./RunView";
@@ -99,12 +100,12 @@ function ParamTable({ rows, empty, showValue }: { rows: (Param | Attrib)[]; empt
             if (showValue) {
               if (r.type === "SecureString") val = r.value ? (reveal ? <code className="wrapcode">{r.value}</code> : <span className="muted">•••••• (encrypted)</span>) : <span className="muted">—</span>;
               else if (r.value === undefined || r.value === "") val = <span className="muted">—</span>;
-              else val = <code className="wrapcode">{prettyValue(r.value)}</code>;
+              else val = <ValueView value={r.value} />;
             }
             return (
               <tr key={r.name}>
                 <td className="mono strong">{r.name}{a.readOnly ? <span className="tag">const</span> : null}</td>
-                <td className="mono type">{r.type}</td>
+                <td className="mono type"><TypeLabel type={r.type} /></td>
                 {showValue && <td>{val}</td>}
                 {hasConf && <td className="mono small">{a.confKey ? `${a.confKey}` : ""}</td>}
                 <td className="desc">{r.description}</td>

@@ -93,7 +93,7 @@ export function Sidebar({ pkg, selected, onSelect }: { pkg: PackageInfo; selecte
           return (
             <div key={g.kind} className="tree-group">
               <button className="tree-group-head" onClick={() => setCollapsed({ ...collapsed, [g.kind]: !collapsed[g.kind] })} aria-expanded={!isCollapsed}>
-                <KindIcon kind={g.kind} /> {g.label} <span className="count">{els.length}</span>
+                <KindIcon kind={g.kind} /> <span className="tree-group-label">{g.label}</span> <span className="count">{els.length}</span>
                 <span className="caret right">{isCollapsed ? "▸" : "▾"}</span>
               </button>
               {!isCollapsed && <FolderNode f={buildTree(els, true)} depth={0} selected={selected} onSelect={onSelect} forceOpen={!!q} />}

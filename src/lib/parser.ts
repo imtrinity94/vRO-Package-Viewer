@@ -682,9 +682,113 @@ export function formatDuration(ms?: number): string {
 /* ------------------------------------------------------------------ */
 
 /** Best-effort pretty print of vRO's serialised attribute values. */
+/** A decoded vRO length-prefixed value (arrays and composite types in configuration elements and runs). */
+export type SerNode =
+  | { t: "scalar"; type: string; value: string }
+  | { t: "array"; type: string; items: SerNode[] }
+  | { t: "object"; type: string; fields: [string, SerNode][] };
+
+/** Short type name for display: "CompositeType(a:string,b:string):MyType" -> "MyType". */
+export function serTypeName(type: string): string {
+  const m = /^CompositeType\(.*\):([^():]+)$/.exec(type);
+  return m ? m[1] : type;
+}
+
+function parseTypedValue(s: string): SerNode | null {
+  // The type can contain "(...)" with ":" and "," but never "#", so the first "#" ends it.
+  const hash = s.indexOf("#");
+  if (hash < 0) return { t: "scalar", type: "", value: s };
+  const type = s.slice(0, hash);
+  const raw = s.slice(hash + 1);
+  if (/^\[(\d+:|\s*\])/.test(raw)) {
+    const items = parseSerArray(raw);
+    if (items) return { t: "array", type, items };
+  }
+  if (/^\{(\d+:\d+:|\s*\})/.test(raw)) {
+    const fields = parseSerProps(raw);
+    if (fields) return { t: "object", type, fields };
+  }
+  return { t: "scalar", type, value: raw };
+}
+
+/** `[len:type#value len:type#value ...]` where len counts "type#value". */
+function parseSerArray(v: string): SerNode[] | null {
+  if (!v.startsWith("[") || !v.endsWith("]")) return null;
+  const body = v.slice(1, -1);
+  const out: SerNode[] = [];
+  let i = 0;
+  while (i < body.length) {
+    if (/[\s,;]/.test(body[i])) {
+      i++;
+      continue;
+    }
+    const m = /^(\d+):/.exec(body.slice(i, i + 16));
+    if (!m) return null;
+    i += m[0].length;
+    const len = Number(m[1]);
+    if (i + len > body.length) return null;
+    const node = parseTypedValue(body.substr(i, len));
+    if (!node) return null;
+    out.push(node);
+    i += len;
+  }
+  return out;
+}
+
+/** `{klen:vlen:key=type#value\n...}` where vlen counts "type#value". */
+function parseSerProps(v: string): [string, SerNode][] | null {
+  if (!v.startsWith("{") || !v.endsWith("}")) return null;
+  const body = v.slice(1, -1);
+  const out: [string, SerNode][] = [];
+  let i = 0;
+  while (i < body.length) {
+    if (/[\s,;]/.test(body[i])) {
+      i++;
+      continue;
+    }
+    const m = /^(\d+):(\d+):/.exec(body.slice(i, i + 24));
+    if (!m) return null;
+    i += m[0].length;
+    const key = body.substr(i, Number(m[1]));
+    i += Number(m[1]);
+    if (body[i] !== "=") return null;
+    i++;
+    const len = Number(m[2]);
+    if (i + len > body.length) return null;
+    const node = parseTypedValue(body.substr(i, len));
+    if (!node) return null;
+    out.push([key, node]);
+    i += len;
+  }
+  return out;
+}
+
+/** Decode a length-prefixed array / properties / composite value, or null if it isn't one. */
+export function parseSerialized(v: string | undefined): SerNode | null {
+  if (!v) return null;
+  if (/^\[(\d+:|\s*\]$)/.test(v)) {
+    const items = parseSerArray(v);
+    return items ? { t: "array", type: "", items } : null;
+  }
+  if (/^\{\d+:\d+:/.test(v)) {
+    const fields = parseSerProps(v);
+    return fields ? { t: "object", type: "", fields } : null;
+  }
+  return null;
+}
+
+/** One-line text form of a decoded value, used in exports and as a fallback. */
+export function serToText(n: SerNode): string {
+  if (n.t === "scalar") return /^(number|boolean)$/.test(n.type) ? n.value : JSON.stringify(n.value);
+  if (n.t === "array") return "[" + n.items.map(serToText).join(", ") + "]";
+  return "{ " + n.fields.map(([k, f]) => `${k}: ${serToText(f)}`).join(", ") + " }";
+}
+
 export function prettyValue(v: string | undefined): string | undefined {
   if (v === undefined) return undefined;
   if (v === "__NULL__") return "(null)";
+  const ser = parseSerialized(v);
+  if (ser) return serToText(ser);
   // Arrays: #{#string#a#;#string#b#}#
   if (v.startsWith("#{#") && v.endsWith("#}#")) {
     const body = v.slice(3, -3);

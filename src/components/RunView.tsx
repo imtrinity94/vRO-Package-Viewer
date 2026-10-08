@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import type { PackageInfo, RunElement, RunValue, WorkflowElement } from "../lib/types";
-import { formatDuration, prettyValue } from "../lib/parser";
+import { formatDuration } from "../lib/parser";
 import { FilesPanel, Header, RefsPanel, Tabs, tryPretty } from "./ElementView";
 import { CodeBlock } from "./CodeBlock";
+import { ValueView } from "./ValueView";
 import { SchemaDiagram, type RunOverlay } from "./SchemaDiagram";
 import { KindIcon } from "./Icons";
 
@@ -73,7 +74,7 @@ function ValueCell({ v, pkg, onNav }: { v: RunValue; pkg: PackageInfo; onNav: Na
       </div>
     );
   if (v.type === "boolean") return <span className={`chip ${v.value === "true" ? "ok" : ""}`}>{v.value}</span>;
-  return <code className="wrapcode">{prettyValue(v.value)}</code>;
+  return <ValueView value={v.value} />;
 }
 
 function ValueTable({ rows, pkg, onNav, empty }: { rows: (RunValue & { declared?: boolean })[]; pkg: PackageInfo; onNav: Nav; empty: string }) {

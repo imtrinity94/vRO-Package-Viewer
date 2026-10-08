@@ -12,6 +12,23 @@ The version lives in `package.json` and is shown in the app's top bar.
 
 ---
 
+## 2026.9.0 (2026-10-08)
+
+### Added
+- **Resizable table columns.** Drag the right edge of any column header to resize it, and double-click the edge to reset. This works on every data table in the app.
+- **Readable composite and array values.** Values such as an `Array/CompositeType(...)` in a configuration element, previously shown raw as `[205:CompositeType(...)#{14:20:...}`, are now decoded:
+  - an array of composite values becomes a small table with one row per item and one column per field
+  - plain arrays become a numbered list, and properties become a key/value table
+  - the same decoding is used in workflow-run values, and as one-line text in the export report
+
+### Changed
+- Composite types in the Type column show their short name (for example `Array/ABSADCToRubrikClusterMapping`), with the field names underneath and the full signature on hover.
+
+### Fixed
+- Long sidebar group titles such as "Configuration Elements" now wrap left-aligned instead of centred.
+
+---
+
 ## 2026.8.2 (2026-10-08)
 
 ### Changed

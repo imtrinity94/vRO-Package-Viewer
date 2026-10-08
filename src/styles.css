@@ -235,7 +235,9 @@ mark { background: var(--mark); color: inherit; border-radius: 2px; }
 .tree-group-head {
   width: 100%; display: flex; align-items: center; gap: 7px; background: none; border: 0;
   padding: 10px 12px 6px; font-weight: 650; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); cursor: pointer;
+  text-align: left; line-height: 1.3;
 }
+.tree-group-label { flex: 1; min-width: 0; }
 .tree-folder, .tree-item {
   width: 100%; display: flex; align-items: center; gap: 6px; background: none; border: 0;
   padding: 4px 10px; cursor: pointer; text-align: left; font-size: 13px; min-width: 0;
@@ -288,10 +290,34 @@ mark { background: var(--mark); color: inherit; border-radius: 2px; }
 /* ---------- tables ---------- */
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
-th { text-align: left; font-weight: 600; color: var(--muted); font-size: 12px; padding: 6px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th { text-align: left; font-weight: 600; color: var(--muted); font-size: 12px; padding: 6px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; position: relative; }
+/* Column resize grip (see src/lib/columnResize.ts) */
+thead th:not(:last-child)::after { content: ""; position: absolute; top: 4px; bottom: 4px; right: 0; width: 8px; cursor: col-resize; border-right: 2px solid transparent; }
+thead th:not(:last-child):hover::after { border-right-color: var(--border); }
+thead th.col-resizing-th::after { border-right-color: var(--accent) !important; }
+table[data-resized] th, table[data-resized] td { overflow: hidden; overflow-wrap: anywhere; }
+table[data-resized] th { text-overflow: ellipsis; }
+.no-resize thead th::after, .ser-table th::after { display: none; }
+body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-select: none !important; }
 td { padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
 tr:last-child td { border-bottom: 0; }
 table.compact td { padding: 4px 8px; }
+td.type { overflow-wrap: anywhere; min-width: 140px; }
+
+/* Decoded array / composite values */
+.ser { min-width: 220px; }
+.ser-table { width: auto; min-width: 100%; font-size: 12px; border: 1px solid var(--border); border-radius: 6px; border-collapse: separate; border-spacing: 0; overflow: hidden; background: var(--panel); }
+.ser-table caption { caption-side: top; text-align: left; font-size: 11.5px; color: var(--muted); padding: 0 0 4px; font-family: var(--mono); }
+.ser-table th, .ser-table td { padding: 4px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.ser-table tr:last-child > th, .ser-table tr:last-child > td { border-bottom: 0; }
+.ser-table thead th { background: var(--panel-2); font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+.ser-table tbody th { font-family: var(--mono); font-weight: 600; color: var(--text); white-space: nowrap; width: 1%; }
+.ser-table .ser-idx { width: 1%; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.ser-table code { font-size: 12px; word-break: normal; overflow-wrap: break-word; }
+.type-composite { display: inline-flex; flex-direction: column; gap: 2px; }
+.type-fields { color: var(--muted); font-size: 11.5px; }
+.ser-list { margin: 0; padding-left: 22px; }
+.ser-list li { padding: 1px 0; }
 td.type, .type { color: var(--k-action); }
 td.desc { color: var(--muted); max-width: 460px; white-space: pre-wrap; }
 .wrapcode { white-space: pre-wrap; word-break: break-all; }
