@@ -92,13 +92,12 @@ function MiniSchema() {
 }
 
 function FlowSteps() {
-  const steps: { title: string; body: string; note?: string }[] = [
+  const steps = [
     { title: "Export from Orchestrator", body: "Export a package from the client, or a workflow run from its run history." },
     { title: "Drop it here", body: "The .package is unzipped and read right in this tab." },
     {
       title: "Browse and export",
       body: "Read every script, search across them, and export the whole package as a zip — report, inventory, diagrams and every script as a real file.",
-      note: "Handy for AI too: it is all plain text, so you can point an assistant at the unzipped folder and ask it about your workflows.",
     },
   ];
   return (
@@ -108,7 +107,6 @@ function FlowSteps() {
         <li key={s.title} className="flow-step">
           <strong>{s.title}</strong>
           <span>{s.body}</span>
-          {s.note && <span className="flow-note">{s.note}</span>}
         </li>
       ))}
       <li className="flow-end" aria-hidden />
@@ -134,6 +132,20 @@ export function Landing({ onPick, busy, error, dragging, scrollRef }: { onPick: 
           </h1>
           <p className="lp-lede">
             Drop a package exported from vRealize Orchestrator 7.x, Aria Automation Orchestrator 8.x or VCF Operations Orchestrator 9.x. Its workflows, actions, configuration and resource elements, scripts and recorded runs open right here in your browser.
+          </p>
+          <p className="lp-ai">
+            <span className="lp-ai-badge" aria-hidden>
+              <svg className="lp-ai-spark" viewBox="0 0 24 24">
+                <path d="M12 2 C12.8 7.6 16.4 11.2 22 12 C16.4 12.8 12.8 16.4 12 22 C11.2 16.4 7.6 12.8 2 12 C7.6 11.2 11.2 7.6 12 2Z" />
+              </svg>
+              <svg className="lp-ai-spark lp-ai-spark-sm" viewBox="0 0 24 24">
+                <path d="M12 2 C12.8 7.6 16.4 11.2 22 12 C16.4 12.8 12.8 16.4 12 22 C11.2 16.4 7.6 12.8 2 12 C7.6 11.2 11.2 7.6 12 2Z" />
+              </svg>
+              <span className="lp-ai-word">AI</span>
+            </span>
+            <span>
+              <strong>Ready for your AI assistant.</strong> Export the package as plain-text files, point your assistant at the folder, and ask it about your workflows.
+            </span>
           </p>
           <div className="lp-cta">
             <button className="btn primary lp-btn" onClick={onPick} disabled={busy}>

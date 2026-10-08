@@ -475,6 +475,20 @@ table.steps tbody tr:hover td, table.steps tbody tr.on td { background: var(--pa
 .lp-title { font-size: clamp(34px, 4.4vw, 54px); line-height: 1.05; font-weight: 800; letter-spacing: -0.035em; margin: 0; text-wrap: balance; }
 .lp-title code { font-size: 0.8em; font-weight: 700; letter-spacing: -0.02em; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 0 0.18em; }
 .lp-lede { font-size: 17px; line-height: 1.6; color: var(--muted); margin: 0; max-width: 54ch; }
+.lp-ai { display: flex; align-items: center; gap: 12px; margin: 0; max-width: 58ch; font-size: 14px; line-height: 1.5; color: var(--muted); }
+.lp-ai strong { color: var(--text); font-weight: 600; }
+.lp-ai-badge { position: relative; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 46px; height: 32px; border-radius: 9px; background: var(--panel); border: 1px solid var(--border); }
+.lp-ai-word {
+  font-weight: 800; font-size: 15px; letter-spacing: 0.02em;
+  background: linear-gradient(100deg, var(--brand-amber-text) 0%, var(--accent) 45%, #8b5cf6 60%, var(--brand-amber-text) 100%);
+  background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: ai-shimmer 3.2s linear infinite;
+}
+.lp-ai-spark { position: absolute; top: -6px; right: -6px; width: 14px; height: 14px; fill: var(--brand-amber); animation: ai-twinkle 2.4s ease-in-out infinite; }
+.lp-ai-spark-sm { top: auto; right: auto; bottom: -4px; left: -4px; width: 9px; height: 9px; fill: var(--accent); animation-delay: 1.2s; }
+@keyframes ai-shimmer { from { background-position: 100% 0; } to { background-position: -150% 0; } }
+@keyframes ai-twinkle { 0%, 100% { transform: scale(0.55) rotate(0deg); opacity: 0.45; } 50% { transform: scale(1) rotate(45deg); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .lp-ai-word, .lp-ai-spark { animation: none; } }
 .lp-cta { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .lp-btn { font-size: 15px; padding: 12px 22px; border-radius: 10px; }
 .lp-hint { color: var(--muted); font-size: 14px; }
@@ -542,7 +556,6 @@ table.steps tbody tr:hover td, table.steps tbody tr.on td { background: var(--pa
 .flow-end { background: var(--brand-fg); box-shadow: 0 0 0 4px var(--bg), 0 0 0 6px var(--brand-fg); }
 .flow-step { flex: 1 1 0; margin: 0 22px; background: var(--accent-soft); border: 1.5px solid var(--k-workflow); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; color: var(--muted); }
 .flow-step strong { color: var(--text); font-size: 14.5px; }
-.flow-note { margin-top: 2px; padding-top: 7px; border-top: 1px dashed var(--border); font-size: 12.5px; color: var(--muted); }
 
 .lp-foot { max-width: 1180px; margin: 56px auto 0; padding: 22px 24px 40px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
 .lp-foot a { color: var(--accent); }

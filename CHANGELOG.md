@@ -12,6 +12,14 @@ The version lives in `package.json` and is shown in the app's top bar.
 
 ---
 
+## 2026.8.2 (2026-10-08)
+
+### Changed
+- The AI note moved out of the "Browse and export" step and into the landing page hero, right under the main description. It now reads "Ready for your AI assistant".
+- A small **AI** badge sits beside it, with a slow colour shimmer and two twinkling sparkles. The animation switches off when "reduce motion" is turned on.
+
+---
+
 ## 2026.8.1 (2026-10-08)
 
 ### Changed
