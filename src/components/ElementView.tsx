@@ -433,17 +433,22 @@ function ActionView({ el, pkg, onNav, term }: { el: ActionElement; pkg: PackageI
         {el.timeout && <span className="chip">timeout {el.timeout}s</span>}
         {env && <button className="chip clickable" onClick={() => onNav(env.id)}>env: {env.name}</button>}
       </Header>
-      <div className="signature mono">
-        <span className="muted">{el.module}/</span><span className="strong">{el.name}</span>(
-        {el.params.map((p, i) => (
-          <span key={p.name}>{i > 0 && ", "}{p.name}<span className="type">: {p.type}</span></span>
-        ))}
-        ) <span className="type">: {el.resultType ?? "void"}</span>
-      </div>
       <Tabs<T> value={tab} onChange={setTab} tabs={[{ id: "code", label: "Script" }, { id: "refs", label: "References" }, { id: "files", label: "Raw", count: el.files.length }]} />
       {tab === "code" && (
         <div className="stack">
-          <section className="card"><h3>Parameters <span className="count">{el.params.length}</span></h3><ParamTable rows={el.params} empty="No parameters." /></section>
+          <section className="card">
+            <h3>Inputs <span className="count">{el.params.length}</span></h3>
+            <ParamTable rows={el.params} empty="This action takes no inputs." />
+            <h3 className="io-head">Output</h3>
+            <table className="io-out">
+              <tbody>
+                <tr>
+                  <th scope="row">Type</th>
+                  <td className="mono type">{el.resultType && el.resultType !== "void" ? <TypeLabel type={el.resultType} /> : <span className="muted">void (returns nothing)</span>}</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
           {el.script.trim() ? <CodeBlock code={el.script} lang={lang} title={`${el.name}`} highlightTerm={term} /> : <p className="muted">No inline script{el.hasBundle ? " — code lives in the bundle zip (see Raw tab)." : "."}</p>}
           {el.hasBundle && (
             <p><button className="btn" onClick={async () => download(`${el.name}-bundle.zip`, await el.getFile("bundle"), "application/zip")}>⬇ Download action bundle (zip)</button></p>

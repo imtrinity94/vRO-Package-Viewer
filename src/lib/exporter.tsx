@@ -315,6 +315,7 @@ h2{font-size:24px;margin:28px 0 6px}h3{font-size:16px;margin:22px 0 8px}h4{font-
 table{width:100%;border-collapse:collapse;margin:6px 0 10px;font-size:13px}th{text-align:left;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line);padding:5px 8px}td{padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:top}
 table.compact td{padding:3px 8px;font-size:12px}
 td.desc{color:var(--muted);white-space:pre-wrap}
+table.io-out{width:auto}table.io-out th{padding-right:28px}
 .signature{background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:10px 12px;overflow-x:auto}
 .schema{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:#fafcfd}.schema svg{display:block}
 figure.code{margin:8px 0 14px;border:1px solid var(--line);border-radius:8px;overflow:hidden}

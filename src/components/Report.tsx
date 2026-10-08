@@ -211,11 +211,17 @@ function ActionSection({ el, pkg }: { el: ActionElement; pkg: PackageInfo }) {
   return (
     <>
       <Head el={el}><span>{el.runtimeLabel}</span>{el.hasBundle && <span>has bundle</span>}</Head>
-      <p className="signature mono">
-        {el.module}/<strong>{el.name}</strong>({el.params.map((p) => `${p.name}: ${p.type}`).join(", ")}) : {el.resultType ?? "void"}
-      </p>
-      <h3>Parameters</h3>
-      <ParamTable rows={el.params} empty="No parameters." />
+      <h3>Inputs</h3>
+      <ParamTable rows={el.params} empty="This action takes no inputs." />
+      <h3>Output</h3>
+      <table className="io-out">
+        <tbody>
+          <tr>
+            <th>Type</th>
+            <td className="mono type">{el.resultType && el.resultType !== "void" ? el.resultType : "void (returns nothing)"}</td>
+          </tr>
+        </tbody>
+      </table>
       {el.script.trim() ? <Code code={el.script} lang={el.lang} title="Script" /> : <p className="muted">No inline script.</p>}
       <Refs el={el} pkg={pkg} />
     </>

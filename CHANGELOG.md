@@ -12,6 +12,16 @@ The version lives in `package.json` and is shown in the app's top bar.
 
 ---
 
+## 2026.9.2 (2026-10-08)
+
+### Changed
+- Action pages no longer show the one-line signature (`module/name(param: type, …) : type`). Instead they show:
+  - an **Inputs** table with each parameter's name, type and description
+  - an **Output** row with the return type, or "void (returns nothing)"
+- The export report uses the same layout for actions.
+
+---
+
 ## 2026.9.1 (2026-10-08)
 
 ### Fixed
