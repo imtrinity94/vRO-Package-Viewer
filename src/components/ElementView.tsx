@@ -249,19 +249,15 @@ function Bindings({ it, wf }: { it: WfItem; wf: WorkflowElement }) {
 function ItemDetail({ it, wf, pkg, onNav, term }: { it: WfItem; wf: WorkflowElement; pkg: PackageInfo; onNav: Nav; term?: string }) {
   const linked = it.linkedWorkflowId ? pkg.byId.get(it.linkedWorkflowId.toLowerCase()) : undefined;
   const action = it.scriptModule ? pkg.actionIndex.get(it.scriptModule) : undefined;
-  const envId = it.runtime?.startsWith("environment:") ? it.runtime.slice(12).toLowerCase() : undefined;
-  const env = envId ? pkg.byId.get(envId) : undefined;
+  const env = it.environmentId ? pkg.byId.get(it.environmentId.toLowerCase()) : undefined;
   return (
     <section className="card item-detail" id={`item-${it.name}`}>
       <div className="item-head">
         <h3>{it.displayName || it.name}</h3>
         <span className="chip">{it.type}</span>
         <span className="chip mono">{it.name}</span>
-        {it.runtime && (
-          <span className="chip">
-            runtime: {env ? <button className="link" onClick={() => onNav(env.id)}>{env.name}</button> : it.runtime}
-          </span>
-        )}
+        {it.runtime && <span className="chip" title={it.environmentId ? `Environment ${it.environmentId}` : undefined}>{it.runtimeLabel}</span>}
+        {env && <button className="chip clickable" onClick={() => onNav(env.id)}>env: {env.name}</button>}
         {it.outName && <span className="chip">→ {it.outName}</span>}
         {it.altOutName && <span className="chip">alt → {it.altOutName}</span>}
         {it.catchName && <span className="chip warn">catch → {it.catchName}</span>}
@@ -275,7 +271,7 @@ function ItemDetail({ it, wf, pkg, onNav, term }: { it: WfItem; wf: WorkflowElem
       )}
       <Bindings it={it} wf={wf} />
       {it.script && it.script.trim() && (
-        <CodeBlock code={it.script} lang={it.runtime ? (it.runtime.includes("powershell") ? "powershell" : it.runtime.includes("node") ? "javascript" : "python") : "javascript"} title="Script" highlightTerm={term} maxHeight={560} />
+        <CodeBlock code={it.script} lang={it.lang} title="Script" highlightTerm={term} maxHeight={560} />
       )}
     </section>
   );
@@ -427,11 +423,11 @@ function ActionView({ el, pkg, onNav, term }: { el: ActionElement; pkg: PackageI
   type T = "code" | "refs" | "files";
   const [tab, setTab] = useState<T>("code");
   const env = el.environmentId ? pkg.byId.get(el.environmentId.toLowerCase()) : undefined;
-  const lang = el.runtime ? (el.runtime.includes("python") ? "python" : el.runtime.includes("powershell") || el.runtime.includes("powercli") ? "powershell" : "javascript") : "javascript";
+  const lang = el.lang;
   return (
     <>
       <Header el={el}>
-        <span className="chip">{el.runtime ? `runtime: ${el.runtime}` : "JavaScript (Rhino)"}</span>
+        <span className="chip" title={el.environmentId ? `Environment ${el.environmentId}` : undefined}>{el.runtimeLabel}</span>
         {el.hasBundle && <span className="chip accent">bundle</span>}
         {el.memoryLimit && <span className="chip">mem {formatBytes(Number(el.memoryLimit))}</span>}
         {el.timeout && <span className="chip">timeout {el.timeout}s</span>}

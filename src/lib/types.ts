@@ -33,6 +33,12 @@ export interface WfItem {
   description?: string;
   script?: string;
   runtime?: string;
+  /** Highlighting language for the script: javascript | python | powershell */
+  lang: string;
+  /** Human-readable runtime, e.g. "JavaScript (Rhino)", "python:3.10", "PowerShell (detected) · environment not in package" */
+  runtimeLabel: string;
+  /** Environment id when the script runs in an action environment */
+  environmentId?: string;
   outName?: string;
   altOutName?: string;
   catchName?: string;
@@ -97,6 +103,10 @@ export interface ActionElement extends BaseElement {
   memoryLimit?: string;
   timeout?: string;
   environmentId?: string;
+  /** Highlighting language for the script: javascript | python | powershell */
+  lang: string;
+  /** Human-readable runtime, e.g. "JavaScript (Rhino)", "powercli:7.4 · environment datasets_1_0_0" */
+  runtimeLabel: string;
   params: Param[];
   script: string;
   hasBundle: boolean;

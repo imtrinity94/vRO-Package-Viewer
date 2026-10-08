@@ -12,6 +12,22 @@ The version lives in `package.json` and is shown in the app's top bar.
 
 ---
 
+## 2026.9.1 (2026-10-08)
+
+### Fixed
+- **PowerShell and Python actions shown as JavaScript.** An 8.x action that runs in an action environment can name that environment in a `<environment>` element instead of a `runtime` attribute. That element wasn't read, so the action fell back to "JavaScript (Rhino)". It was highlighted as JavaScript and exported as a `.js` file.
+- Scriptable tasks that use an environment were always assumed to be Python.
+
+### Changed
+- The script language is now worked out in this order:
+  1. the element's own runtime
+  2. the runtime of its environment, if the environment is in the package
+  3. detection from the script itself, labelled for example "PowerShell (detected) · environment not in package"
+  4. JavaScript (Rhino) for ordinary scripts
+- The viewer, the report and the exported files (`.ps1` / `.py` / `.js`) all use the same result.
+
+---
+
 ## 2026.9.0 (2026-10-08)
 
 ### Added

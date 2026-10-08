@@ -11,7 +11,7 @@ function csvCell(v: unknown) {
 export function elementSummary(e: PkgElement): string {
   switch (e.kind) {
     case "workflow": return `${e.inputs.length} in · ${e.outputs.length} out · ${e.items.filter((i) => i.type !== "end").length} steps`;
-    case "action": return `(${e.params.map((p) => p.type).join(", ")}) → ${e.resultType ?? "void"}${e.runtime ? ` · ${e.runtime}` : ""}`;
+    case "action": return `(${e.params.map((p) => p.type).join(", ")}) → ${e.resultType ?? "void"} · ${e.runtimeLabel}`;
     case "config": return `${e.attributes.length} attributes`;
     case "resource": return `${e.mimeType ?? "?"} · ${formatBytes(e.size)}`;
     case "environment": return `${e.runtime ?? ""} · ${Object.keys(e.dependencies).length} deps`;

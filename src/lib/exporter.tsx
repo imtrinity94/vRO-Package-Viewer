@@ -5,7 +5,7 @@ import { createRoot } from "react-dom/client";
 import type { ActionElement, PackageInfo, WfItem, WorkflowElement } from "./types";
 import { decodeText, isTextMime, langForMime } from "./parser";
 import { inventoryCsv, inventoryMarkdown } from "./inventory";
-import { ReportDocument, langOf, maskedValue, runOverlay } from "../components/Report";
+import { ReportDocument, maskedValue, runOverlay } from "../components/Report";
 import { SchemaSvg, computeLayout, type RunOverlay } from "../components/SchemaDiagram";
 import cityRegular from "@cds/city/Webfonts/WOFF2/ClarityCity-Regular.woff2?inline";
 import cityBold from "@cds/city/Webfonts/WOFF2/ClarityCity-Bold.woff2?inline";
@@ -105,7 +105,7 @@ function comment(lang: string, lines: string[]): string {
 function stepScriptFile(wf: WorkflowElement, it: WfItem, lang: string): string {
   const lines = [
     `Workflow: ${wf.name}${wf.path.length ? `  (${wf.path.join(" / ")})` : ""}`,
-    `Step:     ${it.displayName || it.name}  [${it.name}, ${it.type}${it.runtime ? `, ${it.runtime}` : ""}]`,
+    `Step:     ${it.displayName || it.name}  [${it.name}, ${it.type}${it.runtime ? `, ${it.runtimeLabel}` : ""}]`,
     ...it.inBindings.map((b) => `in:       ${b.name} (${b.type}) <- ${b.exportName ?? "not bound"}`),
     ...it.outBindings.map((b) => `out:      ${b.name} (${b.type}) -> ${b.exportName ?? "not bound"}`),
   ];
@@ -125,7 +125,7 @@ function actionFile(a: ActionElement, lang: string): string {
     return doc.join("\n") + "\n" + a.script.replace(/^\n+/, "");
   }
   const lines = [
-    `Action: ${a.module}/${a.name}${a.version ? `  v${a.version}` : ""}  (${a.runtime ?? ""})`,
+    `Action: ${a.module}/${a.name}${a.version ? `  v${a.version}` : ""}  (${a.runtimeLabel})`,
     ...a.params.map((p) => `param:  ${p.name} (${p.type})`),
     `returns: ${a.resultType ?? "void"}`,
   ];
@@ -185,7 +185,7 @@ export async function exportEverything(pkg: PackageInfo, progress: Progress = ()
         let n = 0;
         for (const it of e.items) {
           if (!it.script || !it.script.trim()) continue;
-          const lang = it.runtime ? langOf(it.runtime) : "javascript";
+          const lang = it.lang;
           n++;
           zip.file(unique(`${base}/${String(n).padStart(2, "0")} ${safeName(it.displayName || it.name)}.${EXT[lang] ?? "txt"}`), stepScriptFile(e, it, lang));
         }
@@ -194,7 +194,7 @@ export async function exportEverything(pkg: PackageInfo, progress: Progress = ()
       }
       case "action": {
         if (!e.script.trim()) break;
-        const lang = langOf(e.runtime);
+        const lang = e.lang;
         zip.file(unique(`scripts/actions/${safeName(e.module)}/${safeName(e.name)}.${EXT[lang] ?? "txt"}`), actionFile(e, lang));
         break;
       }

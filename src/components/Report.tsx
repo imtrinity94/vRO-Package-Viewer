@@ -187,7 +187,7 @@ function WorkflowSection({ el, pkg }: { el: WorkflowElement; pkg: PackageInfo })
             <tr key={it.name}>
               <td className="mono">{it.name}</td>
               <td className="strong">{it.displayName ?? ""}</td>
-              <td className="mono type">{it.type}{it.runtime ? ` (${it.runtime.startsWith("environment:") ? "polyglot" : it.runtime})` : ""}</td>
+              <td className="mono type">{it.type}{it.runtime ? ` (${it.runtimeLabel})` : ""}</td>
               <td className="mono">{[it.outName, it.altOutName && `alt ${it.altOutName}`, it.catchName && `catch ${it.catchName}`].filter(Boolean).join(", ")}</td>
               <td className="mono">{it.scriptModule ?? (it.linkedWorkflowId ? pkg.byId.get(it.linkedWorkflowId.toLowerCase())?.name ?? it.linkedWorkflowId : "")}</td>
             </tr>
@@ -199,7 +199,7 @@ function WorkflowSection({ el, pkg }: { el: WorkflowElement; pkg: PackageInfo })
         <section key={it.name} className="step">
           <h4>{it.displayName || it.name} <span className="muted mono">{it.name} · {it.type}</span></h4>
           <Bindings it={it} />
-          <Code code={it.script!} lang={it.runtime ? langOf(it.runtime) : "javascript"} />
+          <Code code={it.script!} lang={it.lang} />
         </section>
       ))}
       <Refs el={el} pkg={pkg} />
@@ -210,13 +210,13 @@ function WorkflowSection({ el, pkg }: { el: WorkflowElement; pkg: PackageInfo })
 function ActionSection({ el, pkg }: { el: ActionElement; pkg: PackageInfo }) {
   return (
     <>
-      <Head el={el}><span>{el.runtime ? `runtime ${el.runtime}` : "JavaScript"}</span>{el.hasBundle && <span>has bundle</span>}</Head>
+      <Head el={el}><span>{el.runtimeLabel}</span>{el.hasBundle && <span>has bundle</span>}</Head>
       <p className="signature mono">
         {el.module}/<strong>{el.name}</strong>({el.params.map((p) => `${p.name}: ${p.type}`).join(", ")}) : {el.resultType ?? "void"}
       </p>
       <h3>Parameters</h3>
       <ParamTable rows={el.params} empty="No parameters." />
-      {el.script.trim() ? <Code code={el.script} lang={langOf(el.runtime)} title="Script" /> : <p className="muted">No inline script.</p>}
+      {el.script.trim() ? <Code code={el.script} lang={el.lang} title="Script" /> : <p className="muted">No inline script.</p>}
       <Refs el={el} pkg={pkg} />
     </>
   );
