@@ -12,6 +12,14 @@ The version lives in `package.json` and is shown in the app's top bar.
 
 ---
 
+## 2026.8.1 (2026-10-08)
+
+### Changed
+- The landing page now says what the export actually contains — report, inventory, diagrams and every script as a real file — and notes that the zip is plain text throughout, so an AI assistant can read it too: point one at the unzipped folder and ask it about your workflows.
+- The third step is now "Browse and export" rather than "Browse and share", which better matches what it does.
+
+---
+
 ## 2026.8.0 (2026-10-06)
 
 ### Added

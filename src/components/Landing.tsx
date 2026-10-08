@@ -92,10 +92,14 @@ function MiniSchema() {
 }
 
 function FlowSteps() {
-  const steps = [
+  const steps: { title: string; body: string; note?: string }[] = [
     { title: "Export from Orchestrator", body: "Export a package from the client, or a workflow run from its run history." },
     { title: "Drop it here", body: "The .package is unzipped and read right in this tab." },
-    { title: "Browse and share", body: "Read every script, search across them, and export the inventory to CSV or Markdown." },
+    {
+      title: "Browse and export",
+      body: "Read every script, search across them, and export the whole package as a zip — report, inventory, diagrams and every script as a real file.",
+      note: "Handy for AI too: it is all plain text, so you can point an assistant at the unzipped folder and ask it about your workflows.",
+    },
   ];
   return (
     <ol className="flow">
@@ -104,6 +108,7 @@ function FlowSteps() {
         <li key={s.title} className="flow-step">
           <strong>{s.title}</strong>
           <span>{s.body}</span>
+          {s.note && <span className="flow-note">{s.note}</span>}
         </li>
       ))}
       <li className="flow-end" aria-hidden />
