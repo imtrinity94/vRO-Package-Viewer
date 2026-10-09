@@ -4,12 +4,12 @@ import { formatDuration } from "../lib/parser";
 import { VRO_ICONS } from "../lib/vroIcons";
 
 /*
- * Workflow schema drawn the way the Orchestrator client draws it.
- * Layout, icon choice and arrow styling follow wdt4vro (github.com/imtrinity94/wdt4vro):
- * saved canvas positions scaled 1.5x horizontally and 3x vertically, a 120x100 cell per item
- * (40px icon, bold label below), a Start node 180px left of the root item, error handlers
- * 200px left of their item, blue "next" arrows, green out of decisions, red dashed for the
- * alternative path and the error path.
+ * Workflow schema drawn the way the Orchestrator client draws it: every item sits at the
+ * position saved in the workflow XML, 1:1, with the same per-type anchor offsets the client
+ * uses (measured against the 8.x/9.x client). The Start node sits at the workflow's own saved
+ * position. Labels are plain 12px text under the icon; Start and End have no label. Arrows are
+ * thin straight lines from icon centre to icon centre, trimmed 40px at each end.
+ * Icon set and colours come from wdt4vro (github.com/imtrinity94/wdt4vro).
  */
 
 export interface RunOverlay {
@@ -20,12 +20,21 @@ export interface RunOverlay {
   failed?: boolean;
 }
 
-const NODE_W = 120;
-const NODE_H = 100;
+/** Width of the label column under an icon (Orchestrator wraps at roughly this). */
+const LABEL_W = 116;
 const ICON = 40;
-const SCALE_X = 1.5;
-const SCALE_Y = 3;
-const MARGIN = 60;
+const ICON_DECISION = 44;
+/** Arrows stop this far from each icon centre. */
+const TRIM = 40;
+const MARGIN = 40;
+
+/** Icon centre relative to the item's saved (x, y), per item type, as the Orchestrator client places them. */
+function anchor(kind: string): { dx: number; dy: number } {
+  if (kind === "start") return { dx: -10, dy: 38 };
+  if (kind === "end") return { dx: -10, dy: 128 };
+  if (DECISIONS.has(kind)) return { dx: 30, dy: 70 };
+  return { dx: 30, dy: 48 };
+}
 
 const C = {
   canvas: "#fafcfd",
@@ -74,12 +83,13 @@ function iconFor(it: WfItem): string {
 }
 
 function labelFor(it: WfItem): string {
-  if (it.type === "end") return "End";
+  if (it.type === "end") return "";
   return it.displayName || it.name;
 }
 
-/** Wrap a label into at most 3 lines of ~17 characters (12px bold in a 120px cell). */
-function wrap(text: string, max = 17, lines = 3): string[] {
+/** Wrap a label into at most 3 lines of ~19 characters (12px regular in a ~116px column). */
+function wrap(text: string, max = 19, lines = 3): string[] {
+  if (!text) return [];
   const out: string[] = [];
   let cur = "";
   for (const word of text.split(/\s+/)) {
@@ -102,20 +112,52 @@ function wrap(text: string, max = 17, lines = 3): string[] {
   return out;
 }
 
-/** wdt4vro's createArrowPath: centre to centre, trimmed by half a cell, nudged up 10%. */
-function arrow(x1: number, y1: number, x2: number, y2: number): string {
+/** Label area under an icon, relative to the icon centre (estimated from the wrapped text). */
+type LabelRect = { hw: number; top: number; bottom: number };
+function labelRect(label: string, size = ICON): LabelRect | undefined {
+  const lines = wrap(label);
+  if (!lines.length) return undefined;
+  const longest = Math.max(...lines.map((l) => l.length));
+  return { hw: Math.min(LABEL_W, longest * 6.4) / 2, top: size / 2 + 4, bottom: size / 2 + 6 + lines.length * 15 };
+}
+
+/** How far along direction (ux, uy) a ray from the icon centre travels before leaving the label area. */
+function exitLabel(ux: number, uy: number, r?: LabelRect): number {
+  if (!r) return 0;
+  let tmin = -Infinity, tmax = Infinity;
+  const slab = (u: number, lo: number, hi: number) => {
+    if (Math.abs(u) < 1e-9) {
+      if (0 < lo || 0 > hi) { tmin = Infinity; }
+      return;
+    }
+    const t1 = lo / u, t2 = hi / u;
+    tmin = Math.max(tmin, Math.min(t1, t2));
+    tmax = Math.min(tmax, Math.max(t1, t2));
+  };
+  slab(ux, -r.hw, r.hw);
+  slab(uy, r.top, r.bottom);
+  return tmax > Math.max(tmin, 0) ? tmax + 6 : 0;
+}
+
+/**
+ * Straight line between two icon centres, trimmed so it floats between the icons like the client's:
+ * 40px off each icon, or past the label when the line would otherwise run through it.
+ */
+function arrow(x1: number, y1: number, x2: number, y2: number, fromLabel?: LabelRect, toLabel?: LabelRect): string {
   const dx = x2 - x1;
   const dy = y2 - y1;
   const len = Math.hypot(dx, dy);
   if (!len) return "";
   const ux = dx / len;
   const uy = dy / len;
-  const off = NODE_H * 0.1;
-  const sx = x1 + ux * (NODE_W / 2);
-  const sy = y1 - off + uy * (NODE_H / 2);
-  const ex = x2 - ux * (NODE_W / 2);
-  const ey = y2 - off - uy * (NODE_H / 2);
-  return `M${sx.toFixed(1)},${sy.toFixed(1)} L${ex.toFixed(1)},${ey.toFixed(1)}`;
+  const t1 = Math.max(TRIM, exitLabel(ux, uy, fromLabel));
+  const t2 = Math.max(TRIM, exitLabel(-ux, -uy, toLabel));
+  if (len <= t1 + t2 + 8) {
+    // icons very close together: keep a short visible stub in the middle
+    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+    return `M${(mx - ux * 4).toFixed(1)},${(my - uy * 4).toFixed(1)} L${(mx + ux * 4).toFixed(1)},${(my + uy * 4).toFixed(1)}`;
+  }
+  return `M${(x1 + ux * t1).toFixed(1)},${(y1 + uy * t1).toFixed(1)} L${(x2 - ux * t2).toFixed(1)},${(y2 - uy * t2).toFixed(1)}`;
 }
 
 type Box = { x: number; y: number };
@@ -124,49 +166,74 @@ type Extra = { key: string; label: string; icon: string; pos: Box; target?: stri
 
 export type SchemaLayout = NonNullable<ReturnType<typeof computeLayout>>;
 
-/** Pure layout computation (also used by the export). */
-export function computeLayout(wf: WorkflowElement) {
-  {
-    const items = wf.items.filter((i) => i.x !== undefined && i.y !== undefined);
-    const pos = new Map<string, Box>();
-    if (!items.length) return null;
-    const minX = Math.min(...items.map((i) => i.x!));
-    const minY = Math.min(...items.map((i) => i.y!));
-    for (const it of items) pos.set(it.name, { x: (it.x! - minX) * SCALE_X + MARGIN, y: (it.y! - minY) * SCALE_Y + MARGIN });
-    // leave room on the left for the Start node (and error handlers)
-    const left = Math.min(...[...pos.values()].map((p) => p.x));
-    const shift = MARGIN + NODE_W + 20 - left + (wf.errorHandlers.length ? 80 : 0);
-    for (const p of pos.values()) p.x += shift;
+/** Centre-to-centre distance a label-carrying item needs above the next icon in its column. */
+const STACK_GAP = 88;
 
-    const extras: Extra[] = [];
-    const root = wf.rootName ? pos.get(wf.rootName) : undefined;
-    if (root) extras.push({ key: "__start", label: "Start", icon: "start", pos: { x: root.x - 180, y: root.y } });
-    for (const t of wf.errorHandlers) {
-      const p = pos.get(t);
-      if (p) extras.push({ key: `__eh_${t}`, label: "Error handler", icon: "error-handler", pos: { x: p.x - 200, y: p.y }, target: t });
+/** Smallest vertical stretch (>= 1) that keeps stacked items from touching; 1 for typical layouts. */
+function verticalStretch(items: WfItem[]): number {
+  let f = 1;
+  for (const a of items) {
+    for (const b of items) {
+      const dyRaw = b.y! - a.y!;
+      if (dyRaw <= 0) continue;
+      const aa = anchor(a.type), ab = anchor(b.type);
+      if (Math.abs(b.x! + ab.dx - (a.x! + aa.dx)) >= LABEL_W) continue; // not in the same column
+      const need = (STACK_GAP - (ab.dy - aa.dy)) / dyRaw;
+      if (need > f) f = need;
     }
-
-    const edges: Edge[] = [];
-    for (const it of items) {
-      if (it.outName && pos.has(it.outName)) {
-        const dec = DECISIONS.has(it.type);
-        edges.push({ from: it.name, to: it.outName, color: it.type === "switch" ? C.switchDefault : dec ? C.green : C.blue, marker: dec || it.type === "switch" ? "green" : "blue", width: 1.5 });
-      }
-      if (it.altOutName && pos.has(it.altOutName)) edges.push({ from: it.name, to: it.altOutName, color: C.red, marker: "red", dash: "5,5", width: 2 });
-      if (it.catchName && pos.has(it.catchName)) edges.push({ from: it.name, to: it.catchName, color: C.red, marker: "red", dash: "4,4", width: 2 });
-      if (it.type === "switch") for (const t of it.conditionTargets) if (pos.has(t)) edges.push({ from: it.name, to: t, color: C.blue, marker: "blue", width: 1.5 });
-    }
-
-    const all = [...pos.values(), ...extras.map((e) => e.pos)];
-    const minAllX = Math.min(...all.map((p) => p.x));
-    if (minAllX < 20) {
-      const d = 20 - minAllX;
-      for (const p of all) p.x += d;
-    }
-    const width = Math.max(...all.map((p) => p.x)) + NODE_W + MARGIN;
-    const height = Math.max(...all.map((p) => p.y)) + NODE_H + MARGIN / 2;
-    return { items, pos, extras, edges, width, height };
   }
+  return Math.min(f, 2.5);
+}
+
+/** Pure layout computation (also used by the export). Positions are icon centres. */
+export function computeLayout(wf: WorkflowElement) {
+  const items = wf.items.filter((i) => i.x !== undefined && i.y !== undefined);
+  if (!items.length) return null;
+  const pos = new Map<string, Box>();
+  // Horizontal positions are always 1:1. Vertically, items stacked in the same column can sit
+  // closer than an icon plus its label; stretch the vertical axis just enough to clear them.
+  const fy = verticalStretch(items);
+  const minY0 = Math.min(...items.map((i) => i.y!));
+  for (const it of items) {
+    const a = anchor(it.type);
+    pos.set(it.name, { x: it.x! + a.dx, y: minY0 + (it.y! - minY0) * fy + a.dy });
+  }
+
+  const extras: Extra[] = [];
+  const root = wf.rootName ? pos.get(wf.rootName) : undefined;
+  if (root) {
+    const a = anchor("start");
+    // the workflow's saved start position; older packages without one get the client's default spot
+    const sp = wf.start ? { x: wf.start.x + a.dx, y: wf.start.y + a.dy } : { x: root.x - 80, y: root.y - 40 };
+    extras.push({ key: "__start", label: "", icon: "start", pos: sp });
+  }
+  for (const t of wf.errorHandlers) {
+    const p = pos.get(t);
+    if (p) extras.push({ key: `__eh_${t}`, label: "Error handler", icon: "error-handler", pos: { x: p.x - 130, y: p.y }, target: t });
+  }
+
+  const edges: Edge[] = [];
+  for (const it of items) {
+    if (it.outName && pos.has(it.outName)) {
+      const dec = DECISIONS.has(it.type);
+      edges.push({ from: it.name, to: it.outName, color: it.type === "switch" ? C.switchDefault : dec ? C.green : C.blue, marker: dec || it.type === "switch" ? "green" : "blue", width: 1 });
+    }
+    if (it.altOutName && pos.has(it.altOutName)) edges.push({ from: it.name, to: it.altOutName, color: C.red, marker: "red", dash: "6,4", width: 1 });
+    if (it.catchName && pos.has(it.catchName)) edges.push({ from: it.name, to: it.catchName, color: C.red, marker: "red", dash: "6,4", width: 1 });
+    if (it.type === "switch") for (const t of it.conditionTargets) if (pos.has(t)) edges.push({ from: it.name, to: t, color: C.blue, marker: "blue", width: 1 });
+  }
+
+  // Shift everything so the drawing starts MARGIN from the top-left, keeping relative positions 1:1
+  const all = [...pos.values(), ...extras.map((e) => e.pos)];
+  const minX = Math.min(...all.map((p) => p.x)) - LABEL_W / 2;
+  const minY = Math.min(...all.map((p) => p.y)) - ICON_DECISION / 2;
+  for (const p of all) {
+    p.x += MARGIN - minX;
+    p.y += MARGIN - minY;
+  }
+  const width = Math.max(...all.map((p) => p.x)) + LABEL_W / 2 + MARGIN;
+  const height = Math.max(...all.map((p) => p.y)) + ICON / 2 + 3 * 15 + MARGIN;
+  return { items, pos, extras, edges, width, height };
 }
 
 function useLayout(wf: WorkflowElement) {
@@ -197,8 +264,14 @@ export function SchemaSvg({
   zoom?: number;
 }) {
   const { items, pos, extras, edges, width, height } = layout;
-  const center = (p: Box) => ({ x: p.x + NODE_W / 2, y: p.y + NODE_H / 2 });
+  const center = (p: Box) => p;
+  const byName = new Map(items.map((i) => [i.name, i]));
+  const lrect = (name: string) => {
+    const it = byName.get(name);
+    return it ? labelRect(labelFor(it), DECISIONS.has(it.type) ? ICON_DECISION : ICON) : undefined;
+  };
   const ranEdge = (e: Edge) => !run || (run.ran.has(e.from) && run.ran.has(e.to));
+  const FONT = "'Clarity City', 'Metropolis', Arial, sans-serif";
 
   const node = (key: string, label: string, icon: string, p: Box, it?: WfItem) => {
     const r = it && run?.ran.get(it.name);
@@ -207,6 +280,11 @@ export function SchemaSvg({
     const lines = wrap(label);
     const time = r?.ms !== undefined ? `${formatDuration(r.ms)}${r.count && r.count > 1 ? ` ×${r.count}` : ""}` : undefined;
     const isSel = it && selected === it.name;
+    const size = it && DECISIONS.has(it.type) ? ICON_DECISION : ICON;
+    const textTop = size / 2 + 16;
+    // highlight box: icon plus its label (and timing) underneath
+    const boxH = size / 2 + 12 + Math.max(1, lines.length) * 15 + (time ? 15 : 0) + 6;
+    const box = { x: -LABEL_W / 2 - 4, y: -size / 2 - 8, w: LABEL_W + 8, h: boxH + size / 2 + 2 };
     return (
       <g
         key={key}
@@ -217,27 +295,28 @@ export function SchemaSvg({
         onKeyDown={it && onSelect ? (e) => (e.key === "Enter" || e.key === " ") && onSelect(it.name) : undefined}
         tabIndex={it && onSelect ? 0 : undefined}
         role={it && onSelect ? "button" : undefined}
-        aria-label={it ? `${label} (${it.type}${time ? `, ${time}` : ""})` : undefined}
+        aria-label={it ? `${label || it.type} (${it.type}${time ? `, ${time}` : ""})` : undefined}
       >
-        {it && <title>{`${label} — ${it.type}${it.scriptModule ? ` · ${it.scriptModule}` : ""} (${it.name})${time ? ` — ${time}` : ""}`}</title>}
-        {(r || failedHere) && <rect x={4} y={-4} width={NODE_W - 8} height={NODE_H} rx={8} fill={failedHere ? C.failFill : C.ranFill} stroke={failedHere ? C.red : C.ran} strokeWidth={1.2} />}
-        {isSel && <rect data-ui x={2} y={-6} width={NODE_W - 4} height={NODE_H + 4} rx={9} fill={C.select} stroke={C.blue} strokeWidth={1.5} />}
-        {it && onSelect && <rect data-ui className="wf-hit" x={4} y={-4} width={NODE_W - 8} height={NODE_H} rx={8} fill="transparent" />}
-        <image href={iconUri(icon)} x={(NODE_W - ICON) / 2} y={0} width={ICON} height={ICON} />
-        <text x={NODE_W / 2} y={ICON + 17} textAnchor="middle" fontSize={12} fontWeight={700} fill={C.text} fontFamily="'Clarity City', 'Metropolis', Arial, sans-serif">
-          {lines.map((l, i) => (
-            <tspan key={i} x={NODE_W / 2} dy={i === 0 ? 0 : 14}>{l}</tspan>
-          ))}
-        </text>
+        {it && <title>{`${label || it.type} — ${it.type}${it.scriptModule ? ` · ${it.scriptModule}` : ""} (${it.name})${time ? ` — ${time}` : ""}`}</title>}
+        {(r || failedHere) && <rect x={box.x} y={box.y} width={box.w} height={box.h} rx={8} fill={failedHere ? C.failFill : C.ranFill} stroke={failedHere ? C.red : C.ran} strokeWidth={1.2} />}
+        {isSel && <rect data-ui x={box.x - 2} y={box.y - 2} width={box.w + 4} height={box.h + 4} rx={9} fill={C.select} stroke={C.blue} strokeWidth={1.5} />}
+        {it && onSelect && <rect data-ui className="wf-hit" x={box.x} y={box.y} width={box.w} height={box.h} rx={8} fill="transparent" />}
+        <image href={iconUri(icon)} x={-size / 2} y={-size / 2} width={size} height={size} />
+        {lines.length > 0 && (
+          <text x={0} y={textTop} textAnchor="middle" fontSize={12} fontWeight={500} fill={C.text} fontFamily={FONT}>
+            {lines.map((l, i) => (
+              <tspan key={i} x={0} dy={i === 0 ? 0 : 15}>{l}</tspan>
+            ))}
+          </text>
+        )}
         {time && (
-          <text x={NODE_W / 2} y={ICON + 17 + lines.length * 14 + 1} textAnchor="middle" fontSize={11} fontWeight={700} fill={C.time} fontFamily="'Clarity City', 'Metropolis', Arial, sans-serif">
+          <text x={0} y={textTop + Math.max(1, lines.length) * 15} textAnchor="middle" fontSize={11} fontWeight={700} fill={C.time} fontFamily={FONT}>
             {time}
           </text>
         )}
       </g>
     );
   };
-
 
   return (
     <svg
@@ -251,11 +330,11 @@ export function SchemaSvg({
       style={{ display: "block" }}
     >
       <defs>
-        <pattern id="wf-dots" width="18" height="18" patternUnits="userSpaceOnUse">
-          <circle cx="9" cy="9" r="1" fill={C.dot} />
+        <pattern id="wf-dots" width="20" height="20" patternUnits="userSpaceOnUse">
+          <circle cx="10" cy="10" r="1.2" fill={C.dot} />
         </pattern>
         {([["blue", C.blue], ["green", C.green], ["red", C.red]] as const).map(([k, c]) => (
-          <marker key={k} id={`wf-arr-${k}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="6" orient="auto">
+          <marker key={k} id={`wf-arr-${k}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto">
             <path d="M 0 0 L 10 5 L 0 10 z" fill={c} />
           </marker>
         ))}
@@ -270,7 +349,7 @@ export function SchemaSvg({
         return (
           <path
             key={i}
-            d={arrow(a.x, a.y, b.x, b.y)}
+            d={arrow(a.x, a.y, b.x, b.y, lrect(e.from), lrect(e.to))}
             stroke={e.color}
             strokeWidth={lit ? e.width + 1.2 : e.width}
             strokeDasharray={e.dash}
@@ -285,7 +364,7 @@ export function SchemaSvg({
         if (!to) return null;
         const a = center(x.pos);
         const b = center(to);
-        return <path key={`a${x.key}`} d={arrow(a.x, a.y, b.x, b.y)} stroke={C.blue} strokeWidth={run && !x.target ? 2.7 : 1.5} fill="none" markerEnd="url(#wf-arr-blue)" />;
+        return <path key={`a${x.key}`} d={arrow(a.x, a.y, b.x, b.y, labelRect(x.label), x.target ? lrect(x.target) : wf.rootName ? lrect(wf.rootName) : undefined)} stroke={C.blue} strokeWidth={run && !x.target ? 2.2 : 1} fill="none" markerEnd="url(#wf-arr-blue)" />;
       })}
 
       {extras.map((x) => node(x.key, x.label, x.icon, x.pos))}

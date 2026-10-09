@@ -12,6 +12,20 @@ The version lives in `package.json` and is shown in the app's top bar.
 
 ---
 
+## 2026.10.0 (2026-10-09)
+
+### Changed
+- **The workflow schema now follows Orchestrator's own layout.** Items are drawn at the positions saved in the workflow, 1:1, instead of being stretched 1.5× across and 3× down. Each item type is anchored the way the Orchestrator client places it, so slopes and spacing match what you see in Orchestrator.
+- The Start node uses the workflow's own saved position instead of being placed 180px left of the first item.
+- Labels are regular weight, and Start and End no longer get "Start" / "End" captions, matching Orchestrator.
+- Arrows are thin lines that stop short of each icon, with small arrowheads and finer red dashes. An arrow that would cross its own item's label now starts just past it.
+- The background dot grid is larger and wider-spaced, like Orchestrator's canvas.
+
+### Fixed
+- Workflows with items stacked closely in a column no longer overlap. The vertical axis is stretched just enough to fit each icon and its label, horizontal positions stay 1:1, and single-row workflows are unchanged.
+
+---
+
 ## 2026.9.2 (2026-10-08)
 
 ### Changed
