@@ -1,4 +1,4 @@
-import type { RefObject } from "react";
+import { useState, type RefObject } from "react";
 import { CodeBlock } from "./CodeBlock";
 import { KindIcon } from "./Icons";
 import { VRO_ICONS } from "../lib/vroIcons";
@@ -114,7 +114,37 @@ function FlowSteps() {
   );
 }
 
-export function Landing({ onPick, busy, error, dragging, scrollRef }: { onPick: () => void; busy: boolean; error: string | null; dragging: boolean; scrollRef?: RefObject<HTMLElement | null> }) {
+function UrlBox({ onOpenUrl, busy }: { onOpenUrl: (url: string) => void; busy: boolean }) {
+  const [url, setUrl] = useState("");
+  return (
+    <form
+      className="lp-url"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (url.trim()) onOpenUrl(url.trim());
+      }}
+    >
+      <label htmlFor="lp-url-input" className="lp-url-label">or open a package from a link</label>
+      <div className="lp-url-row">
+        <input
+          id="lp-url-input"
+          className="input"
+          type="url"
+          inputMode="url"
+          placeholder="https://github.com/…/my-workflows.package"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          disabled={busy}
+          spellCheck={false}
+          autoComplete="off"
+        />
+        <button className="btn" type="submit" disabled={busy || !url.trim()}>Open link</button>
+      </div>
+    </form>
+  );
+}
+
+export function Landing({ onPick, onOpenUrl, busy, error, dragging, scrollRef }: { onPick: () => void; onOpenUrl: (url: string) => void; busy: boolean; error: string | null; dragging: boolean; scrollRef?: RefObject<HTMLElement | null> }) {
   return (
     <main ref={scrollRef} className={`lp ${dragging ? "lp-dragging" : ""}`}>
       <section className="lp-hero">
@@ -153,13 +183,14 @@ export function Landing({ onPick, busy, error, dragging, scrollRef }: { onPick: 
             </button>
             <span className="lp-hint">or drop it anywhere on this page</span>
           </div>
+          <UrlBox onOpenUrl={onOpenUrl} busy={busy} />
           {error && <div className="callout warn">{error}</div>}
           <p className="lp-trust">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <rect x="5" y="11" width="14" height="10" rx="2" />
               <path d="M8 11V7a4 4 0 0 1 8 0v4" />
             </svg>
-            Parsed in this tab. The package is never uploaded.
+            Parsed in this tab. Files you choose are never uploaded.
           </p>
         </div>
         <button className="lp-art" onClick={onPick} aria-label="Choose a .package file" disabled={busy}>

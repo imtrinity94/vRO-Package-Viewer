@@ -12,6 +12,25 @@ The version lives in `package.json` and is shown in the app's top bar.
 
 ---
 
+## 2026.11.0 (2026-10-10)
+
+### Added
+- **Open a package from a link.** Paste a URL on the front page and the package is downloaded and opened automatically.
+  - GitHub and GitLab "view file" links are turned into direct download links, and Dropbox share links ask for the file itself.
+  - The browser downloads directly whenever the site allows it, which involves no server at all.
+  - Only when a site blocks direct downloads does a small fallback (`/api/fetch-package`) fetch it instead. It is locked down for the Vercel Hobby plan:
+    - public http(s) addresses only, with internal and private IPs refused, including after redirects
+    - requests from vRO Peekage itself only
+    - at most 4.4 MB, and the file must be a zip
+    - cached at the CDN for an hour
+- **Shareable links.** `vro-peekage.vercel.app/?url=<package-url>` opens that package straight away, which is handy in blog posts and READMEs. A **Share** button in the top bar copies the link for a package opened from a URL, and **Home** clears it.
+
+### Changed
+- The security policy allows the browser to download packages from https sites.
+- The front page's privacy line now reads "Files you choose are never uploaded."
+
+---
+
 ## 2026.10.0 (2026-10-09)
 
 ### Changed

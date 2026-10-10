@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { parsePackage } from "./lib/parser";
+import { fetchPackage, shareLink } from "./lib/fetchPackage";
 import type { PackageInfo } from "./lib/types";
 import { Sidebar } from "./components/Sidebar";
 import { Overview } from "./components/Overview";
@@ -42,6 +43,9 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<View>({ kind: "overview" });
   const [drag, setDrag] = useState(false);
+  /** Link the open package was loaded from (enables the Share button), if any */
+  const [sourceUrl, setSourceUrl] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>(() => {
     try {
@@ -96,10 +100,11 @@ export default function App() {
     setPkg(null);
     setError(null);
     setExporting(null);
+    setSourceUrl(null);
     setNavOpen(false);
     setView({ kind: "overview" });
     document.title = HOME_TITLE;
-    if (location.hash) history.pushState(null, "", location.pathname + location.search);
+    if (location.hash || location.search) history.pushState(null, "", location.pathname);
   }, []);
 
   useEffect(() => {
@@ -108,7 +113,7 @@ export default function App() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
-  const load = useCallback(async (file: File) => {
+  const load = useCallback(async (file: File, fromUrl?: string) => {
     setBusy(true);
     setError(null);
     try {
@@ -116,6 +121,10 @@ export default function App() {
       const p = await parsePackage(buf, file.name);
       if (!p.elements.length && !Object.keys(p.meta).length) throw new Error("This doesn't look like a vRO package (no dunes-meta-inf or elements/ found).");
       setPkg(p);
+      setSourceUrl(fromUrl ?? null);
+      // keep ?url= in the address bar for packages opened from a link, drop it otherwise
+      const search = fromUrl ? `?url=${encodeURIComponent(fromUrl)}` : "";
+      if (location.search !== search) history.replaceState(null, "", location.pathname + search + location.hash);
       document.title = `${p.meta["pkg-name"] || file.name} · vRO Peekage`;
       const h = readHash();
       if (h.kind === "element" && !p.byId.has(h.id.toLowerCase())) go({ kind: "overview" });
@@ -131,6 +140,35 @@ export default function App() {
       setBusy(false);
     }
   }, [go]);
+
+  /** "Open from URL" and shared ?url= links */
+  const loadUrl = useCallback(async (url: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const { file } = await fetchPackage(url);
+      await load(file, url.trim());
+    } catch (e) {
+      setError(`Couldn't open that link: ${(e as Error).message}`);
+      setBusy(false);
+    }
+  }, [load]);
+
+  // Open a shared link: vro-peekage.vercel.app/?url=<package-url>
+  useEffect(() => {
+    const shared = new URLSearchParams(location.search).get("url");
+    if (shared) void loadUrl(shared);
+    // run once on start-up
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const copyShareLink = useCallback(() => {
+    if (!sourceUrl) return;
+    navigator.clipboard?.writeText(shareLink(sourceUrl)).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 1500);
+    });
+  }, [sourceUrl]);
 
   // Global drag & drop
   useEffect(() => {
@@ -246,6 +284,14 @@ export default function App() {
               </svg>
               <span>{exporting?.running ? `${Math.round((exporting.done / exporting.total) * 100)}%` : "Export"}</span>
             </button>
+            {sourceUrl && (
+              <button className="btn-ghost export-btn" onClick={copyShareLink} title="Copy a link that opens this package in vRO Peekage" aria-label="Copy share link">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1" />
+                </svg>
+                <span>{linkCopied ? "Copied" : "Share"}</span>
+              </button>
+            )}
             <button className="btn" onClick={() => inputRef.current?.click()}>Open…</button>
           </>
         )}
@@ -263,7 +309,7 @@ export default function App() {
       </header>
 
       {!pkg ? (
-        <Landing scrollRef={landingRef} onPick={() => inputRef.current?.click()} busy={busy} error={error} dragging={drag} />
+        <Landing scrollRef={landingRef} onPick={() => inputRef.current?.click()} onOpenUrl={loadUrl} busy={busy} error={error} dragging={drag} />
       ) : (
         <div className={`shell ${navOpen ? "nav-open" : ""}`}>
           <Sidebar pkg={pkg} selected={view.kind === "element" ? el?.id : undefined} onSelect={(id) => go({ kind: "element", id })} />
