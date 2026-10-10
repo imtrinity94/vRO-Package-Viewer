@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { parsePackage } from "./lib/parser";
+import { formatBytes, parsePackage } from "./lib/parser";
 import { fetchPackage, shareLink } from "./lib/fetchPackage";
 import type { PackageInfo } from "./lib/types";
 import { Sidebar } from "./components/Sidebar";
@@ -46,6 +46,8 @@ export default function App() {
   /** Link the open package was loaded from (enables the Share button), if any */
   const [sourceUrl, setSourceUrl] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
+  /** Full-screen "Downloading / Reading package" overlay */
+  const [loading, setLoading] = useState<{ title: string; detail?: string; pct?: number } | null>(null);
   const [navOpen, setNavOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>(() => {
     try {
@@ -116,6 +118,9 @@ export default function App() {
   const load = useCallback(async (file: File, fromUrl?: string) => {
     setBusy(true);
     setError(null);
+    setLoading({ title: "Reading package…", detail: `${file.name} · ${formatBytes(file.size)}` });
+    // let the overlay paint before the (synchronous-heavy) parse starts
+    await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
     try {
       const buf = await file.arrayBuffer();
       const p = await parsePackage(buf, file.name);
@@ -138,6 +143,7 @@ export default function App() {
       );
     } finally {
       setBusy(false);
+      setLoading(null);
     }
   }, [go]);
 
@@ -145,12 +151,26 @@ export default function App() {
   const loadUrl = useCallback(async (url: string) => {
     setBusy(true);
     setError(null);
+    let host = "";
     try {
-      const { file } = await fetchPackage(url);
+      host = new URL(url.trim()).hostname;
+    } catch {
+      /* reported by fetchPackage */
+    }
+    setLoading({ title: "Downloading package…", detail: host });
+    try {
+      const { file } = await fetchPackage(url, (loaded, total) =>
+        setLoading({
+          title: "Downloading package…",
+          detail: `${host} · ${formatBytes(loaded)}${total ? ` of ${formatBytes(total)}` : ""}`,
+          pct: total ? Math.min(100, Math.round((loaded / total) * 100)) : undefined,
+        }),
+      );
       await load(file, url.trim());
     } catch (e) {
       setError(`Couldn't open that link: ${(e as Error).message}`);
       setBusy(false);
+      setLoading(null);
     }
   }, [load]);
 
@@ -247,6 +267,18 @@ export default function App() {
   return (
     <div className="app">
       {picker}
+      {loading && (
+        <div className="load-overlay" role="status" aria-live="polite">
+          <div className="load-card">
+            <span className="load-logo"><Logo size={56} /></span>
+            <strong>{loading.title}</strong>
+            {loading.detail && <span className="load-detail">{loading.detail}</span>}
+            <span className={`load-bar${loading.pct === undefined ? " indeterminate" : ""}`}>
+              <span style={loading.pct !== undefined ? { width: `${loading.pct}%` } : undefined} />
+            </span>
+          </div>
+        </div>
+      )}
       {drag && (
         <div className="drop-overlay">
           <div>Drop your .package file</div>

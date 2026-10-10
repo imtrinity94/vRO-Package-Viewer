@@ -12,6 +12,16 @@ The version lives in `package.json` and is shown in the app's top bar.
 
 ---
 
+## 2026.11.1 (2026-10-10)
+
+### Changed
+- While a package loads, a full-screen overlay now shows what's happening, instead of only the small button text changing:
+  - **Downloading package…**, with the source site and a live progress bar (for example "github.com · 611 KB of 1.80 MB")
+  - **Reading package…**, with the file name and size, while it's parsed
+- It covers shared links, the URL box, choosing a file and drag-and-drop. The animation stays still when "reduce motion" is on.
+
+---
+
 ## 2026.11.0 (2026-10-10)
 
 ### Added

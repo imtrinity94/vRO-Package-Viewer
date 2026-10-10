@@ -52,6 +52,26 @@ export interface FetchedPackage {
   via: "direct" | "proxy";
 }
 
+export type Progress = (loaded: number, total?: number) => void;
+
+/** Read a response body while reporting progress. */
+async function readWithProgress(res: Response, onProgress?: Progress): Promise<Blob> {
+  const total = Number(res.headers.get("content-length")) || undefined;
+  if (!res.body || !onProgress) return res.blob();
+  const reader = res.body.getReader();
+  const parts: Uint8Array[] = [];
+  let loaded = 0;
+  onProgress(0, total);
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    parts.push(value);
+    loaded += value.byteLength;
+    onProgress(loaded, total);
+  }
+  return new Blob(parts as BlobPart[]);
+}
+
 async function asError(res: Response): Promise<Error> {
   let msg = `${res.status} ${res.statusText}`.trim();
   try {
@@ -65,14 +85,14 @@ async function asError(res: Response): Promise<Error> {
   return new Error(msg);
 }
 
-export async function fetchPackage(input: string): Promise<FetchedPackage> {
+export async function fetchPackage(input: string, onProgress?: Progress): Promise<FetchedPackage> {
   const url = normalizePackageUrl(input);
   const name = fileNameFromUrl(url);
 
   // 1. Direct, in the browser. Fails with a TypeError when the site doesn't allow cross-site downloads.
   try {
     const res = await fetch(url, { mode: "cors", credentials: "omit", redirect: "follow" });
-    if (res.ok) return { file: new File([await res.blob()], name), via: "direct" };
+    if (res.ok) return { file: new File([await readWithProgress(res, onProgress)], name), via: "direct" };
     if (res.status === 404) throw new Error("Nothing was found at that link (404).");
     if (res.status === 401 || res.status === 403)
       throw new Error("That link needs a sign-in, so vRO Peekage can't open it. Download the file yourself and drop it here instead.");
@@ -83,7 +103,7 @@ export async function fetchPackage(input: string): Promise<FetchedPackage> {
   // 2. Fallback: the small proxy on this site.
   const res = await fetch(`/api/fetch-package?url=${encodeURIComponent(url)}`, { credentials: "omit" });
   if (!res.ok) throw await asError(res);
-  return { file: new File([await res.blob()], name), via: "proxy" };
+  return { file: new File([await readWithProgress(res, onProgress)], name), via: "proxy" };
 }
 
 /** Link that opens a package straight in vRO Peekage. */
